@@ -91,12 +91,11 @@ export default function FaskesPage() {
       setSearchPoint([lat, lon]);
       setAreaName(geoData[0].display_name.split(',').slice(0, 2).join(',').trim());
 
-      // 2. Overpass via backend proxy (avoids CORS restrictions)
-      const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+      // 2. Overpass via Next.js API route (same-origin, no CORS issues)
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 30000);
       const ovRes = await fetch(
-        `${API_BASE}/api/faskes/search?lat=${lat}&lon=${lon}&radius=${radius}`,
+        `/api/faskes/search?lat=${lat}&lon=${lon}&radius=${radius}`,
         { signal: ctrl.signal }
       );
       clearTimeout(timer);
