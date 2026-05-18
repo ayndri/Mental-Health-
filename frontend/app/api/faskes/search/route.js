@@ -1,12 +1,10 @@
-import { NextResponse } from 'next/server';
+export const runtime = 'edge';
 
 const OV_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.openstreetmap.ru/api/interpreter',
 ];
-
-export const maxDuration = 30;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -15,10 +13,10 @@ export async function GET(request) {
   const radius = searchParams.get('radius');
 
   if (!lat || !lon || !radius) {
-    return NextResponse.json({ error: 'lat, lon, radius required' }, { status: 400 });
+    return Response.json({ error: 'lat, lon, radius required' }, { status: 400 });
   }
 
-  const ovQuery = `[out:json][timeout:20];(nwr["amenity"~"^(hospital|clinic|doctors)$"](around:${radius},${lat},${lon});nwr["healthcare"](around:${radius},${lat},${lon}););out body center qt;`;
+  const ovQuery = `[out:json][timeout:20];(node["amenity"~"^(hospital|clinic|doctors)$"](around:${radius},${lat},${lon});way["amenity"~"^(hospital|clinic|doctors)$"](around:${radius},${lat},${lon});node["healthcare"](around:${radius},${lat},${lon});way["healthcare"](around:${radius},${lat},${lon}););out body center qt;`;
 
   for (const endpoint of OV_ENDPOINTS) {
     try {
@@ -26,16 +24,21 @@ export async function GET(request) {
       const timer = setTimeout(() => controller.abort(), 22000);
       const ovRes = await fetch(`${endpoint}?data=${encodeURIComponent(ovQuery)}`, {
         signal: controller.signal,
+        headers: {
+          'User-Agent': 'SeribudCerita/1.0 (capstone educational project)',
+          'Accept': 'application/json',
+        },
       });
       clearTimeout(timer);
       if (ovRes.ok) {
         const data = await ovRes.json();
-        return NextResponse.json(data);
+        return Response.json(data);
       }
+      console.warn(`Overpass ${endpoint} returned ${ovRes.status}`);
     } catch (err) {
       console.warn(`Overpass endpoint failed: ${endpoint} —`, err.message);
     }
   }
 
-  return NextResponse.json({ error: 'Overpass API tidak tersedia, coba lagi nanti.' }, { status: 503 });
+  return Response.json({ error: 'Overpass API tidak tersedia, coba lagi nanti.' }, { status: 503 });
 }
