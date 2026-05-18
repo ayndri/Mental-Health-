@@ -92,7 +92,7 @@ export default function FaskesPage() {
       setAreaName(geoData[0].display_name.split(',').slice(0, 2).join(',').trim());
 
       // 2. Overpass via backend proxy (avoids CORS restrictions)
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 30000);
       const ovRes = await fetch(
