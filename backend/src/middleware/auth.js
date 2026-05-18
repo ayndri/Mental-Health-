@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'];
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -17,7 +17,11 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = db.prepare('SELECT id, name, email, bio, avatar_id, created_at FROM users WHERE id = ?').get(decoded.userId);
+    const result = await db.query(
+      'SELECT id, name, email, bio, avatar_id, avatar_config, created_at FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+    const user = result.rows[0];
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });

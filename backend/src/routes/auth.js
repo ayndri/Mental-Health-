@@ -6,12 +6,10 @@ const { body, validationResult } = require('express-validator');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 
-// Helper: generate JWT token
 function generateToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 }
 
-// Helper: safe user object (no password)
 function safeUser(user) {
   const { password, ...rest } = user;
   return rest;
@@ -34,24 +32,24 @@ router.post(
     const { name, email, password } = req.body;
 
     try {
-      // Check if email already exists
-      const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-      if (existing) {
+      const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.rows[0]) {
         return res.status(409).json({ error: 'Email is already registered' });
       }
 
-      // Hash password
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Insert user
-      const result = db
-        .prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)')
-        .run(name, email, hashedPassword);
+      const insertResult = await db.query(
+        'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id',
+        [name, email, hashedPassword]
+      );
+      const newId = insertResult.rows[0].id;
 
-      const user = db
-        .prepare('SELECT id, name, email, bio, avatar_id, created_at FROM users WHERE id = ?')
-        .get(result.lastInsertRowid);
-
+      const userResult = await db.query(
+        'SELECT id, name, email, bio, avatar_id, avatar_config, created_at FROM users WHERE id = $1',
+        [newId]
+      );
+      const user = userResult.rows[0];
       const token = generateToken(user.id);
 
       return res.status(201).json({ token, user });
@@ -78,7 +76,8 @@ router.post(
     const { email, password } = req.body;
 
     try {
-      const userRow = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+      const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+      const userRow = userResult.rows[0];
 
       if (!userRow) {
         return res.status(401).json({ error: 'Invalid email or password' });

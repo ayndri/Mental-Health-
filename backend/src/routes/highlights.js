@@ -7,18 +7,16 @@ const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 
 // GET /api/highlights
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const highlights = db
-      .prepare(
-        `SELECT id, user_id, chat_id, article_id, article_title, text, color, created_at
-         FROM highlights
-         WHERE user_id = ?
-         ORDER BY created_at DESC`
-      )
-      .all(req.user.id);
-
-    return res.status(200).json({ highlights });
+    const result = await db.query(
+      `SELECT id, user_id, chat_id, article_id, article_title, text, color, created_at
+       FROM highlights
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    return res.status(200).json({ highlights: result.rows });
   } catch (err) {
     console.error('Get highlights error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -35,7 +33,7 @@ router.post(
     body('text').trim().notEmpty().withMessage('Text is required'),
     body('color').optional().matches(/^#[0-9A-Fa-f]{3,8}$/).withMessage('Color must be a valid hex color'),
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
@@ -44,19 +42,24 @@ router.post(
 
     try {
       if (chat_id) {
-        const chat = db.prepare('SELECT id FROM chats WHERE id = ? AND user_id = ?').get(chat_id, userId);
-        if (!chat) return res.status(404).json({ error: 'Chat message not found' });
+        const chatCheck = await db.query(
+          'SELECT id FROM chats WHERE id = $1 AND user_id = $2',
+          [chat_id, userId]
+        );
+        if (!chatCheck.rows[0]) return res.status(404).json({ error: 'Chat message not found' });
       }
 
-      const result = db
-        .prepare('INSERT INTO highlights (user_id, chat_id, article_id, article_title, text, color) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(userId, chat_id || null, article_id || null, article_title || null, text, color || '#A78BFA');
+      const insertResult = await db.query(
+        'INSERT INTO highlights (user_id, chat_id, article_id, article_title, text, color) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [userId, chat_id || null, article_id || null, article_title || null, text, color || '#A78BFA']
+      );
+      const newId = insertResult.rows[0].id;
 
-      const highlight = db
-        .prepare('SELECT id, user_id, chat_id, article_id, article_title, text, color, created_at FROM highlights WHERE id = ?')
-        .get(result.lastInsertRowid);
-
-      return res.status(201).json({ highlight });
+      const result = await db.query(
+        'SELECT id, user_id, chat_id, article_id, article_title, text, color, created_at FROM highlights WHERE id = $1',
+        [newId]
+      );
+      return res.status(201).json({ highlight: result.rows[0] });
     } catch (err) {
       console.error('Create highlight error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -68,7 +71,7 @@ router.post(
 router.delete(
   '/:id',
   [param('id').isInt({ min: 1 }).withMessage('Invalid highlight ID')],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
 
@@ -76,10 +79,13 @@ router.delete(
     const userId = req.user.id;
 
     try {
-      const existing = db.prepare('SELECT id FROM highlights WHERE id = ? AND user_id = ?').get(highlightId, userId);
-      if (!existing) return res.status(404).json({ error: 'Highlight not found' });
+      const existing = await db.query(
+        'SELECT id FROM highlights WHERE id = $1 AND user_id = $2',
+        [highlightId, userId]
+      );
+      if (!existing.rows[0]) return res.status(404).json({ error: 'Highlight not found' });
 
-      db.prepare('DELETE FROM highlights WHERE id = ? AND user_id = ?').run(highlightId, userId);
+      await db.query('DELETE FROM highlights WHERE id = $1 AND user_id = $2', [highlightId, userId]);
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error('Delete highlight error:', err);

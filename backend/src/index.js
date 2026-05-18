@@ -3,7 +3,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// Validate required env vars early
 if (!process.env.JWT_SECRET) {
   console.error('FATAL: JWT_SECRET is not set in environment variables.');
   process.exit(1);
@@ -40,9 +39,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// ─── Start server ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`Seribu Cerita API is running on http://localhost:${PORT}`);
-});
+// ─── Start server (skip in serverless environments) ───────────────────────────
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Seribu Cerita API is running on http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;

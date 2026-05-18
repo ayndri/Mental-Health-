@@ -7,27 +7,14 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const db = require('./database');
 
-// ─── pick target user ─────────────────────────────────────────────────────────
 const emailArg = process.argv.find(a => a.startsWith('--email='))?.split('=')[1]
               || process.argv[process.argv.indexOf('--email') + 1];
 
-const user = emailArg
-  ? db.prepare('SELECT id, name FROM users WHERE email = ?').get(emailArg)
-  : db.prepare('SELECT id, name FROM users ORDER BY id ASC LIMIT 1').get();
-
-if (!user) {
-  console.error('❌  Tidak ada user ditemukan. Daftar dulu lewat aplikasi, baru jalankan seed.');
-  process.exit(1);
-}
-
-console.log(`🌱  Seeding data untuk user: ${user.name} (id=${user.id})`);
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
 function daysAgo(n, hour = 20, minute = 0) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   d.setHours(hour, minute, 0, 0);
-  return d.toISOString().replace('T', ' ').slice(0, 19);
+  return d.toISOString();
 }
 
 function dateOnly(n) {
@@ -36,7 +23,6 @@ function dateOnly(n) {
   return d.toISOString().slice(0, 10);
 }
 
-// ─── journal entries ──────────────────────────────────────────────────────────
 const journals = [
   {
     mood: 'happy',
@@ -140,111 +126,67 @@ const journals = [
   },
 ];
 
-// ─── highlights ───────────────────────────────────────────────────────────────
 const highlights = [
-  // Artikel 1
-  {
-    article_id: 'artikel-stres-kerja',
-    article_title: '5 Cara Mengatasi Stres di Hari Sibuk',
-    text: 'Stres itu bukan musuh — ia adalah sinyal dari tubuhmu bahwa kamu butuh perhatian lebih. Belajar mendengarkannya adalah langkah pertama.',
-    color: '#415f83',
-  },
-  {
-    article_id: 'artikel-stres-kerja',
-    article_title: '5 Cara Mengatasi Stres di Hari Sibuk',
-    text: 'Teknik 4-7-8: tarik napas 4 detik, tahan 7 detik, hembuskan 8 detik. Tiga kali pengulangan sudah cukup untuk menenangkan sistem saraf.',
-    color: '#5BA970',
-  },
-  {
-    article_id: 'artikel-stres-kerja',
-    article_title: '5 Cara Mengatasi Stres di Hari Sibuk',
-    text: 'Jangan menunggu merasa siap untuk beristirahat. Jadwalkan istirahat seperti kamu menjadwalkan meeting penting.',
-    color: '#A78BFA',
-  },
-
-  // Artikel 2
-  {
-    article_id: 'artikel-tidur-mental',
-    article_title: 'Kenapa Tidur Cukup Itu Penting untuk Kesehatan Mental',
-    text: 'Saat tidur, otakmu memproses emosi dan konsolidasi memori. Kurang tidur bukan sekadar lelah — ia adalah beban emosional yang menumpuk.',
-    color: '#E596B2',
-  },
-  {
-    article_id: 'artikel-tidur-mental',
-    article_title: 'Kenapa Tidur Cukup Itu Penting untuk Kesehatan Mental',
-    text: 'Konsistensi waktu tidur lebih penting dari durasi. Tidur dan bangun di jam yang sama setiap hari melatih ritme biologismu.',
-    color: '#415f83',
-  },
-
-  // Artikel 3
-  {
-    article_id: 'artikel-mindfulness',
-    article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini',
-    text: 'Mindfulness bukan tentang mengosongkan pikiran — tapi tentang mengamati pikiran tanpa menghakimi. Kamu hanya perlu menjadi saksi yang baik untuk dirimu sendiri.',
-    color: '#5BA970',
-  },
-  {
-    article_id: 'artikel-mindfulness',
-    article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini',
-    text: 'Mulai dari 5 menit sehari. Duduk, tutup mata, dan perhatikan napasmu. Saat pikiran mengembara — dan itu wajar — cukup bawa kembali perhatianmu ke napas.',
-    color: '#A78BFA',
-  },
-  {
-    article_id: 'artikel-mindfulness',
-    article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini',
-    text: 'Penelitian menunjukkan 8 minggu praktik mindfulness secara konsisten dapat mengubah struktur fisik otak di area yang mengatur emosi.',
-    color: '#E596B2',
-  },
-
-  // Artikel 4
-  {
-    article_id: 'artikel-self-compassion',
-    article_title: 'Self-Compassion: Belajar Baik Hati pada Diri Sendiri',
-    text: 'Kita sering memberi nasihat terbaik untuk orang lain, tapi lupa memberikannya untuk diri sendiri. Coba tanya: "Apa yang akan aku katakan ke teman yang sedang merasakannya?"',
-    color: '#415f83',
-  },
-  {
-    article_id: 'artikel-self-compassion',
-    article_title: 'Self-Compassion: Belajar Baik Hati pada Diri Sendiri',
-    text: 'Self-compassion bukan berarti tidak bertanggung jawab atau memanjakan diri. Justru penelitian menunjukkan orang yang berbelas kasih pada diri sendiri lebih termotivasi untuk berkembang.',
-    color: '#5BA970',
-  },
+  { article_id: 'artikel-stres-kerja', article_title: '5 Cara Mengatasi Stres di Hari Sibuk', text: 'Stres itu bukan musuh — ia adalah sinyal dari tubuhmu bahwa kamu butuh perhatian lebih. Belajar mendengarkannya adalah langkah pertama.', color: '#415f83' },
+  { article_id: 'artikel-stres-kerja', article_title: '5 Cara Mengatasi Stres di Hari Sibuk', text: 'Teknik 4-7-8: tarik napas 4 detik, tahan 7 detik, hembuskan 8 detik. Tiga kali pengulangan sudah cukup untuk menenangkan sistem saraf.', color: '#5BA970' },
+  { article_id: 'artikel-stres-kerja', article_title: '5 Cara Mengatasi Stres di Hari Sibuk', text: 'Jangan menunggu merasa siap untuk beristirahat. Jadwalkan istirahat seperti kamu menjadwalkan meeting penting.', color: '#A78BFA' },
+  { article_id: 'artikel-tidur-mental', article_title: 'Kenapa Tidur Cukup Itu Penting untuk Kesehatan Mental', text: 'Saat tidur, otakmu memproses emosi dan konsolidasi memori. Kurang tidur bukan sekadar lelah — ia adalah beban emosional yang menumpuk.', color: '#E596B2' },
+  { article_id: 'artikel-tidur-mental', article_title: 'Kenapa Tidur Cukup Itu Penting untuk Kesehatan Mental', text: 'Konsistensi waktu tidur lebih penting dari durasi. Tidur dan bangun di jam yang sama setiap hari melatih ritme biologismu.', color: '#415f83' },
+  { article_id: 'artikel-mindfulness', article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini', text: 'Mindfulness bukan tentang mengosongkan pikiran — tapi tentang mengamati pikiran tanpa menghakimi. Kamu hanya perlu menjadi saksi yang baik untuk dirimu sendiri.', color: '#5BA970' },
+  { article_id: 'artikel-mindfulness', article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini', text: 'Mulai dari 5 menit sehari. Duduk, tutup mata, dan perhatikan napasmu. Saat pikiran mengembara — dan itu wajar — cukup bawa kembali perhatianmu ke napas.', color: '#A78BFA' },
+  { article_id: 'artikel-mindfulness', article_title: 'Mindfulness: Cara Mudah Hadir di Momen Ini', text: 'Penelitian menunjukkan 8 minggu praktik mindfulness secara konsisten dapat mengubah struktur fisik otak di area yang mengatur emosi.', color: '#E596B2' },
+  { article_id: 'artikel-self-compassion', article_title: 'Self-Compassion: Belajar Baik Hati pada Diri Sendiri', text: 'Kita sering memberi nasihat terbaik untuk orang lain, tapi lupa memberikannya untuk diri sendiri. Coba tanya: "Apa yang akan aku katakan ke teman yang sedang merasakannya?"', color: '#415f83' },
+  { article_id: 'artikel-self-compassion', article_title: 'Self-Compassion: Belajar Baik Hati pada Diri Sendiri', text: 'Self-compassion bukan berarti tidak bertanggung jawab atau memanjakan diri. Justru penelitian menunjukkan orang yang berbelas kasih pada diri sendiri lebih termotivasi untuk berkembang.', color: '#5BA970' },
 ];
 
-// ─── insert journals ──────────────────────────────────────────────────────────
-const insertJournal = db.prepare(
-  'INSERT INTO journals (user_id, mood, title, content, date, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-);
+async function main() {
+  let user;
+  if (emailArg) {
+    const r = await db.query('SELECT id, name FROM users WHERE email = $1', [emailArg]);
+    user = r.rows[0];
+  } else {
+    const r = await db.query('SELECT id, name FROM users ORDER BY id ASC LIMIT 1');
+    user = r.rows[0];
+  }
 
-let journalCount = 0;
-const insertJournalFn = db.transaction(() => {
+  if (!user) {
+    console.error('❌  Tidak ada user ditemukan. Daftar dulu lewat aplikasi, baru jalankan seed.');
+    process.exit(1);
+  }
+
+  console.log(`🌱  Seeding data untuk user: ${user.name} (id=${user.id})`);
+
+  let journalCount = 0;
   for (const j of journals) {
     try {
-      insertJournal.run(user.id, j.mood, j.title, j.content, dateOnly(j.daysBack), daysAgo(j.daysBack));
+      await db.query(
+        'INSERT INTO journals (user_id, mood, title, content, date, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+        [user.id, j.mood, j.title, j.content, dateOnly(j.daysBack), daysAgo(j.daysBack)]
+      );
       journalCount++;
     } catch (e) {
       console.warn(`  ⚠️  Skip journal "${j.title}": ${e.message}`);
     }
   }
-});
-insertJournalFn();
 
-// ─── insert highlights ────────────────────────────────────────────────────────
-const insertHighlight = db.prepare(
-  'INSERT INTO highlights (user_id, article_id, article_title, text, color) VALUES (?, ?, ?, ?, ?)'
-);
-
-let highlightCount = 0;
-const insertHighlightFn = db.transaction(() => {
+  let highlightCount = 0;
   for (const h of highlights) {
     try {
-      insertHighlight.run(user.id, h.article_id, h.article_title, h.text, h.color);
+      await db.query(
+        'INSERT INTO highlights (user_id, article_id, article_title, text, color) VALUES ($1, $2, $3, $4, $5)',
+        [user.id, h.article_id, h.article_title, h.text, h.color]
+      );
       highlightCount++;
     } catch (e) {
       console.warn(`  ⚠️  Skip highlight: ${e.message}`);
     }
   }
-});
-insertHighlightFn();
 
-console.log(`✅  Selesai! Ditambahkan: ${journalCount} jurnal, ${highlightCount} highlight.`);
+  console.log(`✅  Selesai! Ditambahkan: ${journalCount} jurnal, ${highlightCount} highlight.`);
+  process.exit(0);
+}
+
+main().catch(err => {
+  console.error('Seed error:', err);
+  process.exit(1);
+});

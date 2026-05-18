@@ -8,19 +8,20 @@ const { getChatResponse, detectEmotion } = require('../services/ai');
 router.use(authMiddleware);
 
 // GET /api/chat/history
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   try {
-    const chats = db
-      .prepare('SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = ? ORDER BY created_at ASC')
-      .all(req.user.id);
-    return res.status(200).json({ chats });
+    const result = await db.query(
+      'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = $1 ORDER BY created_at ASC',
+      [req.user.id]
+    );
+    return res.status(200).json({ chats: result.rows });
   } catch (err) {
     console.error('Get chat history error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/chat — send message, get AI response, save both
+// POST /api/chat
 router.post(
   '/',
   [body('message').trim().notEmpty().withMessage('Message is required')],
@@ -32,32 +33,39 @@ router.post(
     const userId = req.user.id;
 
     try {
-      // Fetch recent history for context
-      const history = db
-        .prepare('SELECT message, coping_strategy FROM chats WHERE user_id = ? ORDER BY created_at DESC LIMIT 6')
-        .all(userId)
-        .reverse();
+      const historyResult = await db.query(
+        'SELECT message, coping_strategy FROM chats WHERE user_id = $1 ORDER BY created_at DESC LIMIT 6',
+        [userId]
+      );
+      const history = historyResult.rows.reverse();
 
-      const emotion   = detectEmotion(message);
-      const aiReply   = await getChatResponse(message, history);
+      const emotion = detectEmotion(message);
+      const aiReply = await getChatResponse(message, history);
 
-      const result = db
-        .prepare('INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES (?, ?, ?, ?)')
-        .run(userId, message, emotion, aiReply);
+      const insertResult = await db.query(
+        'INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES ($1, $2, $3, $4) RETURNING id',
+        [userId, message, emotion, aiReply]
+      );
+      const newId = insertResult.rows[0].id;
 
-      const chat = db
-        .prepare('SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE id = ?')
-        .get(result.lastInsertRowid);
-
-      return res.status(201).json({ chat });
+      const chatResult = await db.query(
+        'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE id = $1',
+        [newId]
+      );
+      return res.status(201).json({ chat: chatResult.rows[0] });
     } catch (err) {
       console.error('Chat error:', err);
-      // Graceful fallback
       const fallback = 'Maaf, aku lagi ada gangguan sebentar. Tapi kamu nggak sendirian ya, aku tetap di sini 💙';
       try {
-        const r = db.prepare('INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES (?, ?, ?, ?)').run(userId, message, 'neutral', fallback);
-        const chat = db.prepare('SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE id = ?').get(r.lastInsertRowid);
-        return res.status(201).json({ chat });
+        const r = await db.query(
+          'INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES ($1, $2, $3, $4) RETURNING id',
+          [userId, message, 'neutral', fallback]
+        );
+        const chatResult = await db.query(
+          'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE id = $1',
+          [r.rows[0].id]
+        );
+        return res.status(201).json({ chat: chatResult.rows[0] });
       } catch {
         return res.status(500).json({ error: 'Internal server error' });
       }
