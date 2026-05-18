@@ -1,11 +1,20 @@
-const { Pool, neonConfig } = require('@neondatabase/serverless');
-const ws = require('ws');
-neonConfig.webSocketConstructor = ws;
+const { neon } = require('@neondatabase/serverless');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const _sql = neon(process.env.DATABASE_URL);
+
+// pg-compatible wrapper: pool.query(text, params) => { rows }
+// Converts pg-style $1/$2 queries into neon tagged template calls
+function query(text, params = []) {
+  // Split on $1, $2, ... to build a fake TemplateStringsArray
+  const parts = text.split(/\$\d+/g);
+  const strings = Object.assign(parts, { raw: parts });
+  return Promise.resolve(_sql(strings, ...params)).then(rows => ({ rows }));
+}
+
+const pool = { query };
 
 async function initSchema() {
-  await pool.query(`
+  await query(`
     CREATE TABLE IF NOT EXISTS users (
       id         SERIAL PRIMARY KEY,
       name       TEXT NOT NULL,

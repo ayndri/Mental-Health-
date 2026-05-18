@@ -5,7 +5,6 @@ const cors = require('cors');
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL: JWT_SECRET is not set in environment variables.');
-  process.exit(1);
 }
 
 const app = express();
