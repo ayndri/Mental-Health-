@@ -176,7 +176,7 @@ export default function JournalPage() {
 
   return (
     <DashboardShell user={user} onLogout={handleLogout}>
-      <div className="p-6 lg:p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
 
         {/* ── Header ── */}
         <AnimatePresence mode="wait">

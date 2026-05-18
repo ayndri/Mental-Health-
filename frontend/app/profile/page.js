@@ -215,7 +215,7 @@ export default function ProfilePage() {
 
   return (
     <DashboardShell user={user} onLogout={handleLogout}>
-      <div className="p-6 lg:p-8 space-y-5">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-5">
 
         {/* ── HERO CARD ── */}
         <motion.div
@@ -321,7 +321,7 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* ── STATS ── */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <StatCard icon={BookOpen}      value={stats.journals}   label="Jurnal ditulis"    color="#415f83" lightBg="#EEF2FA" delay={0.1} />
           <StatCard icon={MessageCircle} value={stats.chats}      label="Sesi curhat"       color="#E596B2" lightBg="#FEF0F5" delay={0.18} />
           <StatCard icon={Star}          value={stats.highlights} label="Highlight"         color="#5BA970" lightBg="#EBF6EE" delay={0.26} />

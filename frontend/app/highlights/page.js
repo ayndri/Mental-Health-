@@ -195,7 +195,7 @@ export default function HighlightsPage() {
 
   return (
     <DashboardShell user={user} onLogout={handleLogout}>
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-3xl w-full">
 
         {/* Header */}
         <div className="mb-7">

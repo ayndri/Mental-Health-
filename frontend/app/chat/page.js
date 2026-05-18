@@ -231,7 +231,7 @@ export default function ChatPage() {
 
         {/* ── Header ── */}
         <div
-          className="flex items-center gap-3 px-6 py-4 bg-white shrink-0"
+          className="flex items-center gap-3 px-4 sm:px-6 py-4 bg-white shrink-0"
           style={{ borderBottom: '1px solid #EEF0F8' }}
         >
           <SariAvatar size={44}/>

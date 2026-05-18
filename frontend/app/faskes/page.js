@@ -210,10 +210,10 @@ export default function FaskesPage() {
       </div>
 
       {/* ── Content: map + list ── */}
-      <div className="flex-1 overflow-hidden flex gap-0">
+      <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-0">
 
         {/* Map */}
-        <div className="flex-1 p-4 min-w-0">
+        <div className="flex-1 p-3 min-h-[220px] md:min-h-0 min-w-0">
           <FaskesMap
             searchPoint={searchPoint}
             results={results}
@@ -223,8 +223,8 @@ export default function FaskesPage() {
 
         {/* Results list */}
         <div
-          className="w-72 shrink-0 overflow-y-auto"
-          style={{ borderLeft: '1px solid #EEF0F8', background: '#FAFBFD' }}
+          className="w-full md:w-72 shrink-0 overflow-y-auto max-h-[45vh] md:max-h-none"
+          style={{ borderTop: '1px solid #EEF0F8', background: '#FAFBFD' }}
         >
           {!searched && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center px-6 py-10">

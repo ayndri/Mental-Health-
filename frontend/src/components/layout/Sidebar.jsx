@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { User, BookOpen, Star, MessageCircle, LogOut, HeartPulse } from 'lucide-react';
+import { User, BookOpen, Star, MessageCircle, LogOut, HeartPulse, X } from 'lucide-react';
 import CustomAvatar, { DEFAULT_CONFIG } from '@/components/avatars/CustomAvatar';
 
 const NAV_ITEMS = [
@@ -21,7 +21,7 @@ const QUOTES = [
   'Istirahat itu perlu. 🍃',
 ];
 
-export default function Sidebar({ user, onLogout }) {
+export default function Sidebar({ user, onLogout, onClose }) {
   const pathname  = usePathname();
   const avatarConfig = (() => {
     if (!user?.avatar_config) return DEFAULT_CONFIG;
@@ -31,7 +31,7 @@ export default function Sidebar({ user, onLogout }) {
 
   return (
     <aside
-      className="flex flex-col h-screen shrink-0 bg-white"
+      className="flex flex-col h-[100dvh] shrink-0 bg-white"
       style={{ width: '252px', borderRight: '1px solid #EEF0F5' }}
     >
 
@@ -48,10 +48,20 @@ export default function Sidebar({ user, onLogout }) {
             <path d="M12 15C12 15 14.5 13.5 16 15" stroke="rgba(255,255,255,0.45)" strokeWidth="1.1" strokeLinecap="round"/>
           </svg>
         </div>
-        <div>
+        <div className="flex-1">
           <p className="font-semibold text-sm leading-tight" style={{ color: '#1A2840' }}>Seribu Cerita</p>
           <p className="text-[10px] leading-tight mt-0.5" style={{ color: '#A8B4C8' }}>Ruang ceritamu</p>
         </div>
+        {/* Close button — mobile only */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden w-7 h-7 flex items-center justify-center rounded-lg shrink-0"
+            style={{ background: '#F0F4FF' }}
+          >
+            <X size={14} style={{ color: '#415f83' }} />
+          </button>
+        )}
       </div>
 
       {/* ── NAV ── */}
@@ -63,7 +73,7 @@ export default function Sidebar({ user, onLogout }) {
         {NAV_ITEMS.map(({ label, href, icon: Icon, badge }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
           return (
-            <Link key={href} href={href}>
+            <Link key={href} href={href} onClick={onClose}>
               <motion.div
                 className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer"
                 animate={{ backgroundColor: isActive ? '#F0F4FF' : 'transparent' }}
@@ -71,7 +81,6 @@ export default function Sidebar({ user, onLogout }) {
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.12 }}
               >
-                {/* pink left bar when active */}
                 {isActive && (
                   <motion.div
                     layoutId="activeBar"
