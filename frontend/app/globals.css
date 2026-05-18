@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #415f83;
+  --primary-hover: #344D6E;
+  --primary-light: #EAF0FA;
+  --pink: #E596B2;
+  --pink-hover: #C97898;
+  --pink-light: #FCEEF4;
+  --green: #5BA970;
+  --green-hover: #488A59;
+  --green-light: #EBF6EE;
+  --bg: #F6F8FB;
+  --card: #FFFFFF;
+  --text: #1A2840;
+  --muted: #7A8FA8;
+  --input-bg: #F2F6FC;
+  --border: #D5E0EE;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #F6F8FB;
+  color: #1A2840;
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-float-slow {
+    animation: float 9s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #EAF0FA;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #415f83;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #344D6E;
+}
