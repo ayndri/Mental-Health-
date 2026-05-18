@@ -22,6 +22,7 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/journals', require('./routes/journal'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/highlights', require('./routes/highlights'));
+app.use('/api/faskes', require('./routes/faskes'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

@@ -75,10 +75,14 @@ export default function FaskesPage() {
 
     try {
       // 1. Geocode
+      const geoController = new AbortController();
+      const geoTimer = setTimeout(() => geoController.abort(), 10000);
       const geoRes = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=id`,
-        { headers: { 'User-Agent': 'SeribudCerita/1.0 (capstone)' } }
+        { headers: { 'Accept-Language': 'id' }, signal: geoController.signal }
       );
+      clearTimeout(geoTimer);
+      if (!geoRes.ok) throw new Error('Geocode failed');
       const geoData = await geoRes.json();
       if (!geoData.length) { toast.error('Lokasi tidak ditemukan. Coba nama yang lebih spesifik.'); return; }
 
@@ -87,10 +91,18 @@ export default function FaskesPage() {
       setSearchPoint([lat, lon]);
       setAreaName(geoData[0].display_name.split(',').slice(0, 2).join(',').trim());
 
-      // 2. Overpass
-      const ovQuery = `[out:json][timeout:30];(nwr["amenity"~"^(hospital|clinic|doctors)$"](around:${radius},${lat},${lon});nwr["healthcare"](around:${radius},${lat},${lon}););out body center qt;`;
-      const ovRes  = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: ovQuery });
+      // 2. Overpass via backend proxy (avoids CORS restrictions)
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      const ovRes = await fetch(
+        `${API_BASE}/api/faskes/search?lat=${lat}&lon=${lon}&radius=${radius}`,
+        { signal: ctrl.signal }
+      );
+      clearTimeout(timer);
+      if (!ovRes.ok) throw new Error('Faskes proxy error');
       const ovData = await ovRes.json();
+      if (ovData.error) throw new Error(ovData.error);
 
       // 3. Process
       const list = (ovData.elements || [])
@@ -116,8 +128,9 @@ export default function FaskesPage() {
       setResults(list);
       setSearched(true);
       if (!list.length) toast('Tidak ada faskes ditemukan. Coba perluas radius.', { icon: '🔍' });
-    } catch {
-      toast.error('Gagal mencari. Cek koneksi dan coba lagi.');
+    } catch (err) {
+      console.error('Search error:', err);
+      toast.error('Gagal mencari. Cek koneksi internet dan coba lagi.');
     } finally {
       setLoading(false);
     }
