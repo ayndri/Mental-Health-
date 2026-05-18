@@ -7,8 +7,9 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const db = require('./database');
 
+const emailIdx = process.argv.indexOf('--email');
 const emailArg = process.argv.find(a => a.startsWith('--email='))?.split('=')[1]
-              || process.argv[process.argv.indexOf('--email') + 1];
+              || (emailIdx !== -1 ? process.argv[emailIdx + 1] : null);
 
 function daysAgo(n, hour = 20, minute = 0) {
   const d = new Date();
