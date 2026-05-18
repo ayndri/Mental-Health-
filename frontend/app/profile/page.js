@@ -343,7 +343,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold" style={{ color: '#1A2840' }}>Cari Dokter & Faskes Terdekat</p>
-            <p className="text-xs" style={{ color: '#A8B4C8' }}>Klinik, RS, psikiater, psikolog — dengan peta interaktif</p>
+            <p className="text-xs" style={{ color: '#A8B4C8' }}>Klinik, RS, psikiater, dan psikolog terdekat</p>
           </div>
           <ChevronRight size={15} style={{ color: '#C8D0DC' }}/>
         </motion.button>
