@@ -24,8 +24,9 @@ async function initSchema() {
       avatar_id  INTEGER DEFAULT 1,
       avatar_config TEXT DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS journals (
       id         SERIAL PRIMARY KEY,
       user_id    INTEGER NOT NULL REFERENCES users(id),
@@ -34,8 +35,9 @@ async function initSchema() {
       content    TEXT NOT NULL,
       date       DATE DEFAULT CURRENT_DATE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS chats (
       id               SERIAL PRIMARY KEY,
       user_id          INTEGER NOT NULL REFERENCES users(id),
@@ -43,8 +45,9 @@ async function initSchema() {
       emotion_result   TEXT,
       coping_strategy  TEXT,
       created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await query(`
     CREATE TABLE IF NOT EXISTS highlights (
       id            SERIAL PRIMARY KEY,
       user_id       INTEGER NOT NULL REFERENCES users(id),
@@ -54,7 +57,7 @@ async function initSchema() {
       text          TEXT NOT NULL,
       color         TEXT DEFAULT '#A78BFA',
       created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+    )
   `);
 }
 

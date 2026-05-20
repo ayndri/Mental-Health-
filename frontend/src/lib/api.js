@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 30000,
 });
 
 // Request interceptor — attach token
@@ -60,8 +60,8 @@ export const journalAPI = {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 export const chatAPI = {
-  getHistory: () => api.get('/api/chat/history'),
-  getSession: (sessionId) => api.get(`/api/chat/history/${sessionId}`),
+  getHistory: (date) => api.get('/api/chat/history', date ? { params: { date } } : {}),
+  getSessions: () => api.get('/api/chat/sessions'),
   sendMessage: (data) => api.post('/api/chat', data),
 };
 

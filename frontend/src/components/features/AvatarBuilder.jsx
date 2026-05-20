@@ -20,48 +20,62 @@ function HairThumb({ style, color = '#415f83', active, onClick }) {
   const thumbs = [
     // 0 space bun
     <svg key={0} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <circle cx="13" cy="12" r="7" fill={color}/><circle cx="27" cy="12" r="7" fill={color}/>
-      <ellipse cx="20" cy="27" rx="11" ry="9" fill={color} opacity="0.5"/>
+      <circle cx="12" cy="11" r="8" fill={color}/>
+      <circle cx="28" cy="11" r="8" fill={color}/>
+      <ellipse cx="10" cy="9"  rx="4" ry="3" fill="white" opacity="0.2"/>
+      <ellipse cx="26" cy="9"  rx="4" ry="3" fill="white" opacity="0.2"/>
+      <path d="M9 18 C8 14 11 10 20 9 C29 10 32 14 31 18 C29 15 25 13 20 13 C15 13 11 15 9 18Z" fill={color}/>
     </svg>,
     // 1 long
     <svg key={1} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="20" cy="12" rx="12" ry="8" fill={color}/>
-      <rect x="8" y="12" width="24" height="22" rx="6" fill={color} opacity="0.75"/>
+      <path d="M9 18 C8 12 12 5 20 4 C28 5 32 12 31 18 C29 13 24 11 20 11 C16 11 11 13 9 18Z" fill={color}/>
+      <path d="M9 18 C8 23 8 29 9 34 C10 37 12 37 13 36 C14 35 14 30 13 26 C12 22 12 20 12 18Z" fill={color}/>
+      <path d="M31 18 C32 23 32 29 31 34 C30 37 28 37 27 36 C26 35 26 30 27 26 C28 22 28 20 28 18Z" fill={color}/>
+      <path d="M13 10 C16 8 20 7 24 8" stroke="white" strokeWidth="1.2" fill="none" opacity="0.25" strokeLinecap="round"/>
     </svg>,
     // 2 short
     <svg key={2} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="20" cy="13" rx="12" ry="9" fill={color}/>
-      <rect x="8" y="13" width="24" height="12" rx="6" fill={color} opacity="0.65"/>
+      <path d="M9 18 C8 12 12 5 20 4 C28 5 32 12 31 18 C29 13 24 11 20 11 C16 11 11 13 9 18Z" fill={color}/>
+      <path d="M9 18 C8 22 9 26 10 28 C11 29 12 28 13 26 C13 23 12 20 11 18Z" fill={color}/>
+      <path d="M31 18 C32 22 31 26 30 28 C29 29 28 28 27 26 C27 23 28 20 29 18Z" fill={color}/>
     </svg>,
     // 3 curly
     <svg key={3} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <circle cx="20" cy="13" r="12" fill={color}/>
-      <circle cx="10" cy="19" r="7" fill={color}/><circle cx="30" cy="19" r="7" fill={color}/>
-      <circle cx="14" cy="9" r="6" fill={color}/><circle cx="26" cy="9" r="6" fill={color}/>
+      <circle cx="20" cy="12" r="11" fill={color}/>
+      <circle cx="9"  cy="18" r="7"  fill={color}/>
+      <circle cx="31" cy="18" r="7"  fill={color}/>
+      <circle cx="13" cy="8"  r="6"  fill={color}/>
+      <circle cx="27" cy="8"  r="6"  fill={color}/>
+      <circle cx="20" cy="5"  r="6"  fill={color}/>
     </svg>,
     // 4 bob
     <svg key={4} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="20" cy="12" rx="12" ry="8" fill={color}/>
-      <rect x="8" y="12" width="24" height="18" rx="7" fill={color} opacity="0.75"/>
+      <path d="M9 18 C8 12 12 5 20 4 C28 5 32 12 31 18 C29 13 24 11 20 11 C16 11 11 13 9 18Z" fill={color}/>
+      <path d="M9 18 C8 22 8 28 9 32 C10 34 12 34 13 32 C13 29 13 23 12 18Z" fill={color}/>
+      <path d="M31 18 C32 22 32 28 31 32 C30 34 28 34 27 32 C27 29 27 23 28 18Z" fill={color}/>
+      <path d="M9 32 C13 35 16 36 20 36 C24 36 27 35 31 32 C27 36 24 37 20 37 C16 37 13 36 9 32Z" fill={color}/>
     </svg>,
     // 5 ponytail
     <svg key={5} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="17" cy="12" rx="11" ry="8" fill={color}/>
-      <path d="M27 14 Q37 16 35 28 Q33 33 29 31 Q25 29 27 19Z" fill={color}/>
+      <path d="M10 18 C9 12 13 5 20 4 C27 5 31 12 30 18 C28 13 24 12 20 12 C16 12 12 13 10 18Z" fill={color}/>
+      <path d="M10 18 C9 22 9 26 10 28 C11 29 12 28 13 26 C13 24 12 20 12 18Z" fill={color}/>
+      <ellipse cx="30" cy="14" rx="4" ry="3" fill={color}/>
+      <path d="M30 15 C33 18 34 24 33 30 C32 33 30 35 28 34 C26 33 27 30 28 26 C29 22 30 18 30 15Z" fill={color}/>
     </svg>,
     // 6 undercut
     <svg key={6} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="20" cy="10" rx="12" ry="7" fill={color}/>
-      <rect x="9" y="10" width="22" height="9" rx="3" fill={color} opacity="0.75"/>
-      <rect x="4"  y="19" width="7" height="10" rx="4" fill={color} opacity="0.22"/>
-      <rect x="29" y="19" width="7" height="10" rx="4" fill={color} opacity="0.22"/>
+      <path d="M11 16 C10 10 13 5 20 4 C27 5 30 10 29 16 C27 11 24 9 20 9 C16 9 13 11 11 16Z" fill={color}/>
+      <ellipse cx="20" cy="10" rx="9" ry="7" fill={color}/>
+      <path d="M11 16 C10 20 10 26 11 29 C12 31 14 30 14 28 C15 25 14 20 13 17Z" fill={color} opacity="0.28"/>
+      <path d="M29 16 C30 20 30 26 29 29 C28 31 26 30 26 28 C25 25 26 20 27 17Z" fill={color} opacity="0.28"/>
     </svg>,
     // 7 slick back
     <svg key={7} viewBox="0 0 40 40" fill="none" width="30" height="30">
-      <ellipse cx="20" cy="12" rx="13" ry="9" fill={color}/>
-      <rect x="9" y="12" width="22" height="15" rx="7" fill={color} opacity="0.75"/>
-      <path d="M11 12 Q20 8 29 12" stroke="white" strokeWidth="1.5" fill="none" opacity="0.35"/>
-      <path d="M12 17 Q20 13 28 17" stroke="white" strokeWidth="1"   fill="none" opacity="0.22"/>
+      <path d="M9 20 C8 13 12 5 20 4 C28 5 32 13 31 20 C29 14 24 12 20 12 C16 12 11 14 9 20Z" fill={color}/>
+      <path d="M9 20 C8 24 9 28 10 30 C11 31 13 30 13 28 C14 26 13 22 12 20Z" fill={color}/>
+      <path d="M31 20 C32 24 31 28 30 30 C29 31 27 30 27 28 C26 26 27 22 28 20Z" fill={color}/>
+      <path d="M13 14 C16 10 20 9 24 11" stroke="white" strokeWidth="1.5" fill="none" opacity="0.32" strokeLinecap="round"/>
+      <path d="M13 17 C16 14 20 13 24 15" stroke="white" strokeWidth="1"   fill="none" opacity="0.2" strokeLinecap="round"/>
     </svg>,
   ];
   return (

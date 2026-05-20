@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Sparkles, BookOpen, X } from 'lucide-react';
+import { Send, Loader2, Sparkles, BookOpen, X, History, ArrowLeft, ChevronRight, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { chatAPI, journalAPI } from '@/lib/api';
 import { isAuthenticated, getStoredUser, removeToken } from '@/lib/auth';
@@ -122,17 +122,21 @@ function ChatBubble({ msg, onSave }) {
           )}
           {!isUser && msg.ts && (
             <AnimatePresence>
-              {hovered && (
+              {(hovered || msg.saved) && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.85 }}
                   transition={{ duration: 0.15 }}
-                  onClick={() => onSave(msg.text)}
+                  onClick={() => !msg.saved && onSave(msg.text)}
+                  disabled={msg.saved}
                   className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors"
-                  style={{ background: '#EEF2FA', color: '#415f83', border: '1px solid #D0DCEE' }}
+                  style={msg.saved
+                    ? { background: '#EEF9F0', color: '#5BA970', border: '1px solid #C0E4C8' }
+                    : { background: '#EEF2FA', color: '#415f83', border: '1px solid #D0DCEE' }
+                  }
                 >
-                  <BookOpen size={9}/> Simpan ke Jurnal
+                  {msg.saved ? <>✓ Tersimpan</> : <><BookOpen size={9}/> Simpan ke Jurnal</>}
                 </motion.button>
               )}
             </AnimatePresence>
@@ -152,6 +156,9 @@ export default function ChatPage() {
   const [input, setInput]     = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [journalDraft, setJournalDraft] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [sessionDetail, setSessionDetail] = useState(null);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -168,14 +175,15 @@ export default function ChatPage() {
 
   const loadHistory = async () => {
     try {
-      const res   = await chatAPI.getHistory();
+      const res   = await chatAPI.getHistory('today');
       const chats = res.data.chats || [];
       if (chats.length > 0) {
         const msgs = [];
         chats.forEach(c => {
-          msgs.push({ type: 'user', text: c.message, ts: c.created_at, emotion: c.emotion_result });
+          const ts = c.created_at ? new Date(c.created_at).toISOString() : null;
+          msgs.push({ type: 'user', text: c.message, ts, emotion: c.emotion_result });
           if (c.coping_strategy) {
-            msgs.push({ type: 'ai', text: c.coping_strategy, ts: c.created_at });
+            msgs.push({ type: 'ai', text: c.coping_strategy, ts });
           }
         });
         setMessages([WELCOME_MSG, ...msgs]);
@@ -196,7 +204,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, {
         type: 'ai',
         text: chat.coping_strategy || 'Aku di sini untukmu 💙',
-        ts: chat.created_at,
+        ts: chat.created_at ? new Date(chat.created_at).toISOString() : new Date().toISOString(),
       }]);
     } catch {
       toast.error('Gagal menghubungi Sari');
@@ -212,10 +220,38 @@ export default function ChatPage() {
   };
 
   const handleSaveJournal = async ({ mood, title, text }) => {
-    const parts = [`Hari ini aku merasakan...\n${text}`];
-    const content = parts.join('\n\n');
+    const content = `Hari ini aku merasakan...\n${text}`;
     await journalAPI.create({ mood, title: title.trim(), content });
     toast.success('Tersimpan ke jurnal! 📖');
+    if (journalDraft?.idx !== undefined && journalDraft.idx >= 0) {
+      setMessages(prev => prev.map((m, i) => i === journalDraft.idx ? { ...m, saved: true } : m));
+    }
+  };
+
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    setSessionDetail(null);
+    if (sessions.length === 0) {
+      try {
+        const res = await chatAPI.getSessions();
+        setSessions(res.data.sessions || []);
+      } catch { /* ignore */ }
+    }
+  };
+
+  const openSession = async (sessionDateRaw) => {
+    const dateStr = String(sessionDateRaw).substring(0, 10);
+    try {
+      const res = await chatAPI.getHistory(dateStr);
+      const chats = res.data.chats || [];
+      const msgs = [];
+      chats.forEach(c => {
+        const ts = c.created_at ? new Date(c.created_at).toISOString() : null;
+        msgs.push({ type: 'user', text: c.message, ts, emotion: c.emotion_result });
+        if (c.coping_strategy) msgs.push({ type: 'ai', text: c.coping_strategy, ts });
+      });
+      setSessionDetail({ date: dateStr, messages: msgs });
+    } catch { /* ignore */ }
   };
 
   const handleLogout = () => { removeToken(); router.push('/login'); };
@@ -242,6 +278,14 @@ export default function ChatPage() {
               <span className="text-xs truncate" style={{ color: '#A8B4C8' }}>Pendamping kesehatan mental</span>
             </div>
           </div>
+          <button
+            onClick={openHistory}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full shrink-0 transition-colors"
+            style={{ background: '#F0F4FA', color: '#6B85A8' }}
+            title="Riwayat Chat"
+          >
+            <History size={13}/> Riwayat
+          </button>
           <div
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full shrink-0"
             style={{ background: '#F0F4FA', color: '#6B85A8' }}
@@ -257,7 +301,7 @@ export default function ChatPage() {
         >
           <AnimatePresence>
             {messages.map((msg, i) => (
-              <ChatBubble key={i} msg={msg} onSave={(text) => setJournalDraft(text)}/>
+              <ChatBubble key={i} msg={msg} onSave={(text) => setJournalDraft({ text, idx: i })}/>
             ))}
           </AnimatePresence>
 
@@ -340,10 +384,93 @@ export default function ChatPage() {
     <AnimatePresence>
       {journalDraft !== null && (
         <SaveJournalModal
-          text={journalDraft}
+          text={journalDraft.text}
           onClose={() => setJournalDraft(null)}
           onSave={handleSaveJournal}
         />
+      )}
+    </AnimatePresence>
+
+    {/* ── History Drawer ── */}
+    <AnimatePresence>
+      {historyOpen && (
+        <motion.div
+          className="fixed inset-0 z-40 flex justify-end"
+          style={{ background: 'rgba(15,25,45,0.4)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => { setHistoryOpen(false); setSessionDetail(null); }}
+        >
+          <motion.div
+            className="relative h-full bg-white flex flex-col overflow-hidden w-full max-w-sm"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid #EEF0F8' }}>
+              {sessionDetail ? (
+                <button
+                  onClick={() => setSessionDetail(null)}
+                  className="flex items-center gap-1.5 text-sm font-medium"
+                  style={{ color: '#415f83' }}
+                >
+                  <ArrowLeft size={15}/> Semua Riwayat
+                </button>
+              ) : (
+                <span className="font-semibold text-sm" style={{ color: '#1A2840' }}>Riwayat Chat</span>
+              )}
+              <button onClick={() => { setHistoryOpen(false); setSessionDetail(null); }} className="p-1 rounded-lg hover:bg-[#F4F6FA]" style={{ color: '#A8B4C8' }}>
+                <X size={15}/>
+              </button>
+            </div>
+
+            {/* Drawer content */}
+            {sessionDetail ? (
+              <div className="flex-1 overflow-y-auto px-4 py-4" style={{ background: '#F8F9FC' }}>
+                <p className="text-xs text-center mb-4 font-medium" style={{ color: '#A8B4C8' }}>
+                  {new Date(sessionDetail.date + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+                {sessionDetail.messages.map((msg, i) => (
+                  <ChatBubble key={i} msg={msg} onSave={(text) => { setHistoryOpen(false); setJournalDraft({ text, idx: -1 }); }}/>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                {sessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 px-6 text-center" style={{ color: '#A8B4C8' }}>
+                    <Calendar size={32} className="opacity-40"/>
+                    <p className="text-sm">Belum ada riwayat chat sebelumnya</p>
+                  </div>
+                ) : sessions.map((s, i) => (
+                  <motion.button
+                    key={i}
+                    onClick={() => openSession(s.session_date)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                    style={{ borderBottom: '1px solid #F4F6FA' }}
+                    whileHover={{ background: '#F8F9FC' }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#EEF0F8' }}>
+                      <Calendar size={14} style={{ color: '#6B85A8' }}/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium" style={{ color: '#1A2840' }}>
+                        {new Date(String(s.session_date).substring(0, 10) + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      <p className="text-xs truncate mt-0.5" style={{ color: '#A8B4C8' }}>
+                        {String(s.preview || '').substring(0, 50)}{s.preview?.length > 50 ? '…' : ''}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} style={{ color: '#C8D4DC' }}/>
+                  </motion.button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
       )}
     </AnimatePresence>
     </>

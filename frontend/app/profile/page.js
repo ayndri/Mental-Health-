@@ -411,7 +411,7 @@ export default function ProfilePage() {
                             {j.title || j.content?.substring(0, 36) + '…' || 'Entri jurnal'}
                           </p>
                           <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: '#B8C4D0' }}>
-                            <Clock size={9} /> {formatDate(j.createdAt || j.date)}
+                            <Clock size={9} /> {formatDate(j.created_at || j.date)}
                           </p>
                         </div>
                         <span
@@ -481,7 +481,7 @@ export default function ProfilePage() {
                           {c.title || c.message?.substring(0, 36) + '…' || 'Sesi chat'}
                         </p>
                         <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: '#B8C4D0' }}>
-                          <Clock size={9} /> {formatDate(c.createdAt || c.date)}
+                          <Clock size={9} /> {formatDate(c.created_at)}
                         </p>
                       </div>
                     </motion.div>

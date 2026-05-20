@@ -11,141 +11,142 @@ export const DEFAULT_CONFIG   = { bgColor:0, skinTone:0, hairStyle:0, hairColor:
 // ─── Hair back layer ──────────────────────────────────────────────────────────
 function HairBack({ style, color }) {
   switch (style) {
-    case 0: return (
-      <g>
-        <circle cx="71" cy="74" r="23" fill={color}/>
-        <circle cx="129" cy="74" r="23" fill={color}/>
-        <rect x="60" y="76" width="80" height="44" rx="6" fill={color}/>
-      </g>
-    );
-    case 1: return (
-      <g>
-        <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>
-        <rect x="50" y="72" width="100" height="108" rx="26" fill={color}/>
-        <ellipse cx="50" cy="145" rx="16" ry="22" fill={color}/>
-        <ellipse cx="150" cy="145" rx="16" ry="22" fill={color}/>
-      </g>
-    );
-    case 2: return <ellipse cx="100" cy="76" rx="52" ry="27" fill={color}/>;
-    case 3: return (
-      <g>
-        <circle cx="100" cy="66" r="48" fill={color}/>
-        <circle cx="64"  cy="78" r="30" fill={color}/>
-        <circle cx="136" cy="78" r="30" fill={color}/>
-        <circle cx="78"  cy="58" r="24" fill={color}/>
-        <circle cx="122" cy="58" r="24" fill={color}/>
-        <circle cx="100" cy="50" r="24" fill={color}/>
-      </g>
-    );
-    case 4: return (
-      <g>
-        <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>
-        <rect x="50" y="72" width="100" height="68" rx="22" fill={color}/>
-      </g>
-    );
-    case 5: return (
-      <g>
-        <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>
-        <path d="M148 86 Q180 90 176 138 Q172 162 162 158 Q152 154 156 118 Q158 96 148 86Z" fill={color}/>
-      </g>
-    );
-    case 6: return <ellipse cx="100" cy="70" rx="50" ry="22" fill={color}/>;
-    case 7: return (
-      <g>
-        <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>
-        <rect x="52" y="72" width="96" height="56" rx="24" fill={color}/>
-      </g>
-    );
-    default: return <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>;
+    case 0: // Space Bun - hair pulled up, minimal back
+      return <ellipse cx="100" cy="70" rx="46" ry="20" fill={color}/>;
+    case 1: // Long - flows far below face
+      return (
+        <path d="M46 104 C40 124 38 152 40 174 C42 190 58 202 100 202 C142 202 158 190 160 174 C162 152 160 124 154 104 C150 82 134 62 100 60 C66 62 50 82 46 104Z" fill={color}/>
+      );
+    case 2: // Short - close cap
+      return (
+        <path d="M54 104 C52 82 66 62 100 60 C134 62 148 82 146 104 C138 100 118 96 100 96 C82 96 62 100 54 104Z" fill={color}/>
+      );
+    case 3: // Curly - voluminous
+      return (
+        <g>
+          <circle cx="100" cy="62" r="46" fill={color}/>
+          <circle cx="62"  cy="78" r="30" fill={color}/>
+          <circle cx="138" cy="78" r="30" fill={color}/>
+          <circle cx="78"  cy="52" r="24" fill={color}/>
+          <circle cx="122" cy="52" r="24" fill={color}/>
+          <circle cx="100" cy="46" r="24" fill={color}/>
+          <circle cx="54"  cy="104" r="18" fill={color}/>
+          <circle cx="146" cy="104" r="18" fill={color}/>
+        </g>
+      );
+    case 4: // Bob - chin length back panel
+      return (
+        <path d="M50 104 C46 122 46 142 50 158 C54 170 68 178 100 178 C132 178 146 170 150 158 C154 142 154 122 150 104 C146 82 132 62 100 60 C68 62 54 82 50 104Z" fill={color}/>
+      );
+    case 5: // Ponytail - cap + ponytail behind
+      return (
+        <g>
+          <path d="M54 100 C52 80 66 62 100 60 C134 62 148 80 146 100Z" fill={color}/>
+          <path d="M138 88 C150 96 160 118 160 146 C160 164 152 177 144 177 C136 177 130 167 132 152 C134 137 142 122 142 106 C142 96 139 90 138 88Z" fill={color}/>
+          <path d="M138 88 C141 94 140 110 138 128 C136 146 133 158 131 157 C129 156 132 143 134 127 C136 111 136 96 138 88Z" fill={color} opacity="0.32"/>
+        </g>
+      );
+    case 6: // Undercut - minimal, just top strip
+      return <ellipse cx="100" cy="68" rx="44" ry="18" fill={color}/>;
+    case 7: // Slick back - smooth full cap
+      return (
+        <path d="M52 108 C52 82 66 62 100 60 C134 62 148 82 148 108 C144 116 120 124 100 124 C80 124 56 116 52 108Z" fill={color}/>
+      );
+    default:
+      return <ellipse cx="100" cy="72" rx="50" ry="24" fill={color}/>;
   }
 }
 
 // ─── Hair front layer ─────────────────────────────────────────────────────────
+// Each style uses a closed path: outer edge goes over the head top, inner edge
+// draws the natural hairline across the forehead.
 function HairFront({ style, color }) {
   switch (style) {
-    case 0: return (
-      <g>
-        <circle cx="71" cy="74" r="23" fill={color}/>
-        <circle cx="129" cy="74" r="23" fill={color}/>
-        <ellipse cx="100" cy="73" rx="52" ry="26" fill={color}/>
-        <path d="M50 90 Q62 66 100 68 Q138 66 150 90 L146 93 Q132 72 100 74 Q68 72 54 93Z" fill={color}/>
-        <ellipse cx="64"  cy="68" rx="8" ry="5" fill="white" opacity="0.15"/>
-        <ellipse cx="136" cy="68" rx="8" ry="5" fill="white" opacity="0.15"/>
-      </g>
-    );
-    case 1: return (
-      <g>
-        <ellipse cx="100" cy="70" rx="52" ry="28" fill={color}/>
-        <path d="M48 88 Q58 62 100 64 Q142 62 152 88 L147 92 Q136 68 100 70 Q64 68 53 92Z" fill={color}/>
-        <rect x="50" y="82" width="15" height="66" rx="7" fill={color}/>
-        <rect x="135" y="82" width="15" height="66" rx="7" fill={color}/>
-        <ellipse cx="100" cy="65" rx="44" ry="12" fill="white" opacity="0.1"/>
-      </g>
-    );
-    case 2: return (
-      <g>
-        <ellipse cx="100" cy="72" rx="52" ry="28" fill={color}/>
-        <path d="M48 87 Q55 63 100 64 Q145 63 152 87 L148 91 Q137 68 100 70 Q63 68 52 91Z" fill={color}/>
-        <rect x="50" y="82" width="13" height="30" rx="7" fill={color}/>
-        <rect x="137" y="82" width="13" height="30" rx="7" fill={color}/>
-      </g>
-    );
-    case 3: return (
-      <g>
-        <circle cx="100" cy="62" r="48" fill={color}/>
-        <circle cx="62"  cy="74" r="28" fill={color}/>
-        <circle cx="138" cy="74" r="28" fill={color}/>
-        <circle cx="76"  cy="55" r="22" fill={color}/>
-        <circle cx="124" cy="55" r="22" fill={color}/>
-        <circle cx="100" cy="48" r="22" fill={color}/>
-        <circle cx="88"  cy="50" r="9"  fill={color} opacity="0.7"/>
-        <circle cx="112" cy="50" r="9"  fill={color} opacity="0.7"/>
-        <circle cx="75"  cy="65" r="9"  fill={color} opacity="0.7"/>
-        <circle cx="125" cy="65" r="9"  fill={color} opacity="0.7"/>
-      </g>
-    );
-    case 4: return (
-      <g>
-        <ellipse cx="100" cy="70" rx="52" ry="28" fill={color}/>
-        <path d="M48 86 Q56 62 100 64 Q144 62 152 86 L147 90 Q136 68 100 70 Q64 68 53 90Z" fill={color}/>
-        <rect x="50" y="80" width="14" height="50" rx="7" fill={color}/>
-        <rect x="136" y="80" width="14" height="50" rx="7" fill={color}/>
-      </g>
-    );
-    case 5: return (
-      <g>
-        <ellipse cx="100" cy="70" rx="52" ry="28" fill={color}/>
-        <path d="M48 85 Q56 62 100 64 Q144 62 152 85 L148 89 Q137 68 100 70 Q63 68 52 89Z" fill={color}/>
-        <rect x="50" y="80" width="13" height="26" rx="7" fill={color}/>
-        <circle cx="146" cy="85" r="7" fill={color}/>
-        <circle cx="146" cy="85" r="4" fill="white" opacity="0.25"/>
-      </g>
-    );
-    case 6: return (
-      <g>
-        <ellipse cx="100" cy="64" rx="46" ry="20" fill={color}/>
-        <path d="M56 84 Q66 62 100 62 Q134 62 144 82 L140 85 Q128 68 100 68 Q72 68 60 86Z" fill={color}/>
-        <rect x="50" y="84" width="10" height="18" rx="5" fill={color} opacity="0.3"/>
-        <rect x="140" y="84" width="10" height="18" rx="5" fill={color} opacity="0.3"/>
-        <ellipse cx="100" cy="60" rx="28" ry="7" fill="white" opacity="0.12"/>
-      </g>
-    );
-    case 7: return (
-      <g>
-        <ellipse cx="100" cy="66" rx="50" ry="22" fill={color}/>
-        <path d="M52 82 Q62 66 100 64 Q138 66 148 82 L144 84 Q132 70 100 70 Q68 70 56 84Z" fill={color}/>
-        <rect x="50" y="82" width="12" height="22" rx="6" fill={color}/>
-        <rect x="138" y="82" width="12" height="22" rx="6" fill={color}/>
-        <path d="M70 68 Q100 60 130 68" stroke="white" strokeWidth="2" fill="none" opacity="0.12"/>
-        <path d="M74 74 Q100 66 126 74" stroke="white" strokeWidth="1.5" fill="none" opacity="0.08"/>
-      </g>
-    );
-    default: return (
-      <g>
-        <ellipse cx="100" cy="70" rx="52" ry="28" fill={color}/>
-        <path d="M48 86 Q56 62 100 64 Q144 62 152 86" fill={color}/>
-      </g>
-    );
+    case 0: // Space Bun - high hairline, two buns on top
+      return (
+        <g>
+          <path d="M62 100 C60 84 70 68 100 66 C130 68 140 84 138 100 C132 92 120 86 100 85 C80 86 68 92 62 100Z" fill={color}/>
+          <circle cx="73"  cy="64" r="17" fill={color}/>
+          <circle cx="127" cy="64" r="17" fill={color}/>
+          <ellipse cx="68"  cy="58" rx="7" ry="5" fill="white" opacity="0.22"/>
+          <ellipse cx="122" cy="58" rx="7" ry="5" fill="white" opacity="0.22"/>
+          <ellipse cx="73"  cy="78" rx="8" ry="4"  fill={color}/>
+          <ellipse cx="127" cy="78" rx="8" ry="4"  fill={color}/>
+        </g>
+      );
+    case 1: // Long - natural hairline + long side strands
+      return (
+        <g>
+          <path d="M52 102 C50 82 64 62 100 60 C136 62 150 82 148 102 C142 88 126 80 100 78 C74 80 58 88 52 102Z" fill={color}/>
+          <path d="M52 102 C50 118 48 142 50 164 C51 172 54 176 57 174 C60 172 60 163 59 150 C58 135 57 118 58 104Z" fill={color}/>
+          <path d="M148 102 C150 118 152 142 150 164 C149 172 146 176 143 174 C140 172 140 163 141 150 C142 135 143 118 142 104Z" fill={color}/>
+          <path d="M72 76 C86 68 100 66 116 70" stroke="white" strokeWidth="2.5" fill="none" opacity="0.14" strokeLinecap="round"/>
+        </g>
+      );
+    case 2: // Short - close-fitting cap, minimal sides
+      return (
+        <g>
+          <path d="M56 100 C54 82 68 64 100 62 C132 64 146 82 144 100 C138 88 124 82 100 80 C76 82 62 88 56 100Z" fill={color}/>
+          <path d="M56 100 C54 108 54 116 57 120 C59 122 61 120 62 116 C63 112 61 106 60 100Z" fill={color}/>
+          <path d="M144 100 C146 108 146 116 143 120 C141 122 139 120 138 116 C137 112 139 106 140 100Z" fill={color}/>
+        </g>
+      );
+    case 3: // Curly - big fluffy cloud
+      return (
+        <g>
+          <circle cx="100" cy="58" r="46" fill={color}/>
+          <circle cx="62"  cy="74" r="30" fill={color}/>
+          <circle cx="138" cy="74" r="30" fill={color}/>
+          <circle cx="78"  cy="50" r="24" fill={color}/>
+          <circle cx="122" cy="50" r="24" fill={color}/>
+          <circle cx="100" cy="44" r="24" fill={color}/>
+          <circle cx="88"  cy="54" r="9"  fill={color} opacity="0.58"/>
+          <circle cx="112" cy="52" r="9"  fill={color} opacity="0.58"/>
+          <circle cx="74"  cy="68" r="8"  fill={color} opacity="0.58"/>
+          <circle cx="126" cy="66" r="8"  fill={color} opacity="0.58"/>
+        </g>
+      );
+    case 4: // Bob - natural hairline + straight sides to chin
+      return (
+        <g>
+          <path d="M52 102 C50 82 64 62 100 60 C136 62 150 82 148 102 C142 88 126 80 100 78 C74 80 58 88 52 102Z" fill={color}/>
+          <path d="M52 102 C50 118 50 132 52 146 C53 153 56 156 58 155 C61 154 62 148 62 142 C62 130 61 116 58 104Z" fill={color}/>
+          <path d="M148 102 C150 118 150 132 148 146 C147 153 144 156 142 155 C139 154 138 148 138 142 C138 130 139 116 142 104Z" fill={color}/>
+          <path d="M52 146 C66 154 82 157 100 157 C118 157 134 154 148 146 C134 156 118 160 100 160 C82 160 66 156 52 146Z" fill={color}/>
+        </g>
+      );
+    case 5: // Ponytail - pulled-back look + visible tail on side
+      return (
+        <g>
+          <path d="M58 100 C56 84 68 66 100 64 C132 66 144 84 142 100 C136 90 122 86 100 84 C78 86 64 90 58 100Z" fill={color}/>
+          <path d="M58 100 C56 108 56 116 58 120 C60 122 62 120 63 116 C64 112 62 104 62 102Z" fill={color}/>
+          <ellipse cx="140" cy="82" rx="8" ry="6" fill={color} transform="rotate(-12 140 82)"/>
+          <path d="M140 86 C143 94 142 106 140 116 C138 124 136 127 134 125 C132 123 133 118 135 110 C137 100 139 92 140 86Z" fill={color}/>
+        </g>
+      );
+    case 6: // Undercut - thick styled top, faint sides
+      return (
+        <g>
+          <path d="M64 96 C62 78 72 62 100 60 C128 62 138 78 136 96 C130 84 118 76 100 75 C82 76 70 84 64 96Z" fill={color}/>
+          <ellipse cx="100" cy="66" rx="36" ry="16" fill={color}/>
+          <path d="M64 96 C62 104 62 112 64 118 C66 121 68 120 70 116 C71 112 69 104 68 98Z" fill={color} opacity="0.28"/>
+          <path d="M136 96 C138 104 138 112 136 118 C134 121 132 120 130 116 C129 112 131 104 132 98Z" fill={color} opacity="0.28"/>
+        </g>
+      );
+    case 7: // Slick back - receded hairline, combed back
+      return (
+        <g>
+          <path d="M54 106 C52 84 66 64 100 62 C134 64 148 84 146 106 C140 92 124 86 100 84 C76 86 60 92 54 106Z" fill={color}/>
+          <path d="M68 82 C84 72 100 70 116 74" stroke="white" strokeWidth="2.5" fill="none" opacity="0.2" strokeLinecap="round"/>
+          <path d="M72 90 C88 80 100 78 116 82" stroke="white" strokeWidth="1.5" fill="none" opacity="0.12" strokeLinecap="round"/>
+          <path d="M54 106 C52 114 52 120 55 124 C57 126 59 124 60 120 C61 116 60 110 58 106Z" fill={color}/>
+          <path d="M146 106 C148 114 148 120 145 124 C143 126 141 124 140 120 C139 116 140 110 142 106Z" fill={color}/>
+        </g>
+      );
+    default:
+      return (
+        <path d="M52 102 C50 82 64 62 100 60 C136 62 150 82 148 102 C142 88 126 80 100 78 C74 80 58 88 52 102Z" fill={color}/>
+      );
   }
 }
 

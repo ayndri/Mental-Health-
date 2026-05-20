@@ -3,17 +3,47 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
-const { getChatResponse, detectEmotion } = require('../services/ai');
+const { getAIResponse } = require('../services/ai');
 
 router.use(authMiddleware);
 
-// GET /api/chat/history
-router.get('/history', async (req, res) => {
+// GET /api/chat/sessions — list of past session dates
+router.get('/sessions', async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = $1 ORDER BY created_at ASC',
+      `SELECT DATE(created_at) AS session_date, COUNT(*) AS message_count, MIN(message) AS preview
+       FROM chats WHERE user_id = $1 AND DATE(created_at) < CURRENT_DATE
+       GROUP BY DATE(created_at) ORDER BY session_date DESC`,
       [req.user.id]
     );
+    return res.status(200).json({ sessions: result.rows });
+  } catch (err) {
+    console.error('Get sessions error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/chat/history?date=today|YYYY-MM-DD
+router.get('/history', async (req, res) => {
+  try {
+    const { date } = req.query;
+    let result;
+    if (date === 'today') {
+      result = await db.query(
+        'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = $1 AND DATE(created_at) = CURRENT_DATE ORDER BY created_at ASC',
+        [req.user.id]
+      );
+    } else if (date) {
+      result = await db.query(
+        'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = $1 AND DATE(created_at) = $2 ORDER BY created_at ASC',
+        [req.user.id, date]
+      );
+    } else {
+      result = await db.query(
+        'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3',
+        [req.user.id]
+      );
+    }
     return res.status(200).json({ chats: result.rows });
   } catch (err) {
     console.error('Get chat history error:', err);
@@ -39,8 +69,7 @@ router.post(
       );
       const history = historyResult.rows.reverse();
 
-      const emotion = detectEmotion(message);
-      const aiReply = await getChatResponse(message, history);
+      const { emotion, aiReply } = await getAIResponse(message, history);
 
       const insertResult = await db.query(
         'INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES ($1, $2, $3, $4) RETURNING id',
