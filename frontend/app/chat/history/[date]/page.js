@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { chatAPI } from '@/lib/api';
 import { isAuthenticated, getStoredUser, removeToken } from '@/lib/auth';
@@ -34,8 +34,13 @@ function SariAvatar({ size = 30 }) {
 function MessageBubble({ msg }) {
   const isUser = msg.type === 'user';
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isUser && <SariAvatar size={28} />}
+    <motion.div
+      className={`flex items-end gap-2 mb-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
+      {!isUser && <SariAvatar size={30} />}
       <div className={`flex flex-col gap-1 max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
         {!isUser && (
           <span className="text-[10px] font-semibold px-1" style={{ color: '#E596B2' }}>Sari</span>
@@ -64,16 +69,16 @@ function MessageBubble({ msg }) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 export default function ChatHistoryDetailPage({ params }) {
-  const router  = useRouter();
-  const date    = params.date;
-  const [user, setUser]       = useState(null);
+  const router = useRouter();
+  const date   = params.date;
+  const [user, setUser]         = useState(null);
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace('/login'); return; }
@@ -105,12 +110,12 @@ export default function ChatHistoryDetailPage({ params }) {
   if (loading) return <PageLoader />;
 
   return (
-    <DashboardShell user={user} onLogout={handleLogout}>
-      <div className="max-w-2xl mx-auto flex flex-col">
+    <DashboardShell user={user} onLogout={handleLogout} mainClassName="overflow-hidden flex flex-col">
+      <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div
-          className="flex items-center gap-3 px-4 sm:px-6 py-4 bg-white sticky top-0 z-10"
+          className="flex items-center gap-3 px-4 sm:px-6 py-4 bg-white shrink-0"
           style={{ borderBottom: '1px solid #EEF0F8' }}
         >
           <Link href="/chat/history">
@@ -123,25 +128,23 @@ export default function ChatHistoryDetailPage({ params }) {
               <ArrowLeft size={17} />
             </motion.button>
           </Link>
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <SariAvatar size={36} />
-            <div>
-              <p className="text-sm font-semibold" style={{ color: '#1A2840' }}>Sari</p>
-              <p className="text-xs" style={{ color: '#A8B4C8' }}>{displayDate}</p>
-            </div>
+          <SariAvatar size={44} />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm leading-tight" style={{ color: '#1A2840' }}>Sari</p>
+            <p className="text-xs truncate mt-0.5" style={{ color: '#A8B4C8' }}>{displayDate}</p>
           </div>
           <span
-            className="text-[10px] px-2.5 py-1 rounded-full font-medium shrink-0"
+            className="text-[10px] px-3 py-1.5 rounded-full font-medium shrink-0"
             style={{ background: '#EEF9F0', color: '#5BA970' }}
           >
             Selesai
           </span>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 px-4 sm:px-6 py-5" style={{ background: '#F8F9FC', minHeight: '60vh' }}>
+        {/* ── Messages ── */}
+        <div className="flex-1 overflow-y-auto px-5 py-5" style={{ background: '#F8F9FC' }}>
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center" style={{ color: '#A8B4C8' }}>
+            <div className="flex items-center justify-center h-full" style={{ color: '#A8B4C8' }}>
               <p className="text-sm">Tidak ada pesan pada hari ini</p>
             </div>
           ) : (
@@ -149,11 +152,11 @@ export default function ChatHistoryDetailPage({ params }) {
           )}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="px-4 sm:px-6 py-4 bg-white" style={{ borderTop: '1px solid #EEF0F8' }}>
+        {/* ── Bottom CTA ── */}
+        <div className="bg-white shrink-0 px-4 pb-5 pt-3" style={{ borderTop: '1px solid #EEF0F8' }}>
           <Link href="/chat">
             <motion.button
-              className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+              className="w-full py-3 rounded-2xl text-sm font-semibold text-white"
               style={{ background: '#415f83' }}
               whileHover={{ background: '#344D6E' }}
               whileTap={{ scale: 0.98 }}
@@ -161,6 +164,9 @@ export default function ChatHistoryDetailPage({ params }) {
               Mulai Chat Hari Ini
             </motion.button>
           </Link>
+          <p className="text-center text-[10px] mt-2.5" style={{ color: '#C8D4DC' }}>
+            Sesi ini sudah berakhir — hanya bisa dilihat, tidak bisa dibalas.
+          </p>
         </div>
 
       </div>
