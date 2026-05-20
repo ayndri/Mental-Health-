@@ -3,15 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { User, BookOpen, Star, MessageCircle, LogOut, HeartPulse, X } from 'lucide-react';
+import { User, BookOpen, Star, MessageCircle, LogOut, HeartPulse, X, History } from 'lucide-react';
 import CustomAvatar, { DEFAULT_CONFIG } from '@/components/avatars/CustomAvatar';
 
 const NAV_ITEMS = [
-  { label: 'Profil',     href: '/profile',    icon: User },
-  { label: 'Journal',    href: '/journal',    icon: BookOpen },
-  { label: 'Highlights', href: '/highlights', icon: Star },
-  { label: 'Chat',       href: '/chat',       icon: MessageCircle },
-  { label: 'Cari Faskes', href: '/faskes',    icon: HeartPulse },
+  { label: 'Profil',       href: '/profile',       icon: User },
+  { label: 'Journal',      href: '/journal',       icon: BookOpen },
+  { label: 'Highlights',   href: '/highlights',    icon: Star },
+  { label: 'Chat',         href: '/chat',          icon: MessageCircle, exact: true },
+  { label: 'Riwayat Chat', href: '/chat/history',  icon: History },
+  { label: 'Cari Faskes',  href: '/faskes',        icon: HeartPulse },
 ];
 
 const QUOTES = [
@@ -70,8 +71,8 @@ export default function Sidebar({ user, onLogout, onClose }) {
           Menu
         </p>
 
-        {NAV_ITEMS.map(({ label, href, icon: Icon, badge }) => {
-          const isActive = pathname === href || pathname.startsWith(href + '/');
+        {NAV_ITEMS.map(({ label, href, icon: Icon, badge, exact }) => {
+          const isActive = exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'));
           return (
             <Link key={href} href={href} onClick={onClose}>
               <motion.div

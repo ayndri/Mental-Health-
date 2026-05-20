@@ -7,12 +7,15 @@ const { getAIResponse } = require('../services/ai');
 
 router.use(authMiddleware);
 
-// GET /api/chat/sessions — list of past session dates
+// GET /api/chat/sessions — list of all session dates grouped by day
 router.get('/sessions', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT DATE(created_at) AS session_date, COUNT(*) AS message_count, MIN(message) AS preview
-       FROM chats WHERE user_id = $1 AND DATE(created_at) < CURRENT_DATE
+      `SELECT DATE(created_at) AS session_date,
+              COUNT(*) AS message_count,
+              MIN(message) AS preview,
+              MIN(CASE WHEN emotion_result IS NOT NULL AND emotion_result != 'neutral' THEN emotion_result END) AS emotion
+       FROM chats WHERE user_id = $1
        GROUP BY DATE(created_at) ORDER BY session_date DESC`,
       [req.user.id]
     );
