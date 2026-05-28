@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { User, BookOpen, Star, MessageCircle, LogOut, HeartPulse, X, History } from 'lucide-react';
-import CustomAvatar, { DEFAULT_CONFIG } from '@/components/avatars/CustomAvatar';
+import UserAvatar from '@/components/avatars/UserAvatar';
 
 const NAV_ITEMS = [
   { label: 'Profil',       href: '/profile',       icon: User },
@@ -24,10 +24,6 @@ const QUOTES = [
 
 export default function Sidebar({ user, onLogout, onClose }) {
   const pathname  = usePathname();
-  const avatarConfig = (() => {
-    if (!user?.avatar_config) return DEFAULT_CONFIG;
-    try { return JSON.parse(user.avatar_config); } catch { return DEFAULT_CONFIG; }
-  })();
   const quote = QUOTES[new Date().getDay() % QUOTES.length];
 
   return (
@@ -132,7 +128,7 @@ export default function Sidebar({ user, onLogout, onClose }) {
               className="w-10 h-10 rounded-xl overflow-hidden shrink-0"
               style={{ background: '#EEF2F8', outline: '2px solid #E0E8F4' }}
             >
-              <CustomAvatar config={avatarConfig} size={40} />
+              <UserAvatar user={user} size={40} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate leading-tight" style={{ color: '#1A2840' }}>

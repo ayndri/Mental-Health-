@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "seed:articles": "node src/db/seed-articles.js"
   },
   "keywords": [
     "mental-health",

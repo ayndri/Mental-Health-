@@ -72,7 +72,7 @@ router.post(
       );
       const history = historyResult.rows.reverse();
 
-      const { emotion, aiReply } = await getAIResponse(message, history);
+      const { emotion, emotionScores, aiReply } = await getAIResponse(message, history);
 
       const insertResult = await db.query(
         'INSERT INTO chats (user_id, message, emotion_result, coping_strategy) VALUES ($1, $2, $3, $4) RETURNING id',
@@ -84,7 +84,7 @@ router.post(
         'SELECT id, user_id, message, emotion_result, coping_strategy, created_at FROM chats WHERE id = $1',
         [newId]
       );
-      return res.status(201).json({ chat: chatResult.rows[0] });
+      return res.status(201).json({ chat: chatResult.rows[0], emotionScores });
     } catch (err) {
       console.error('Chat error:', err);
       const fallback = 'Maaf, aku lagi ada gangguan sebentar. Tapi kamu nggak sendirian ya, aku tetap di sini 💙';

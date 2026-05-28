@@ -72,4 +72,24 @@ export const highlightsAPI = {
   delete: (id) => api.delete(`/api/highlights/${id}`),
 };
 
+// ─── Guest Chat (no auth) ─────────────────────────────────────────────────────
+export const guestChatAPI = {
+  send: (message, history) => api.post('/api/guest-chat', { message, history }),
+  summary: (history) => api.post('/api/guest-chat/summary', { history }),
+};
+
+// ─── Articles ─────────────────────────────────────────────────────────────────
+export const articlesAPI = {
+  getAll:       (params) => api.get('/api/articles', { params }),
+  getBySlug:    (slug)   => api.get(`/api/articles/${slug}`),
+  getRecommended: (emotion) => api.get('/api/articles/recommended', { params: { emotion } }),
+};
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+export const adminAPI = {
+  login: (password) => api.post('/api/admin/login', { password }),
+  getStats: (token) => api.get('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
+  getUsers: (token) => api.get('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+};
+
 export default api;

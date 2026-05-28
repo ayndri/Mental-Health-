@@ -26,6 +26,9 @@ app.use('/api/journals', require('./routes/journal'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/highlights', require('./routes/highlights'));
 app.use('/api/faskes', require('./routes/faskes'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/guest-chat', require('./routes/guest-chat'));
+app.use('/api/articles',  require('./routes/articles'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

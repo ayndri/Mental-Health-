@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, Sparkles, BookOpen, X, History } from 'lucide-react';
+import { Send, Sparkles, BookOpen, X, History, RefreshCw, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { chatAPI, journalAPI } from '@/lib/api';
@@ -12,112 +12,294 @@ import { MOODS } from '@/components/features/MoodSelector';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import DashboardShell from '@/components/layout/DashboardShell';
 
-// ─── Sari's welcome message (not persisted) ───────────────────────────────────
-const WELCOME_MSG = {
-  type: 'ai',
-  text: 'Halo! Aku Sari, teman curhatmu di Seribu Cerita 🌸\n\nAku di sini untuk mendengarkan dan menemanimu kapanpun kamu butuh. Nggak ada yang dihakimi di sini — ceritain aja apa yang kamu rasakan.\n\nGimana perasaanmu hari ini?',
-  ts: null,
-};
-
-const QUICK_REPLIES = [
-  '😢 Aku lagi sedih banget',
-  '😰 Aku lagi stres nih',
-  '💭 Aku butuh cerita sebentar',
-  '😌 Aku mau cerita sesuatu',
+// ─── Chip sets (same as landing page) ────────────────────────────────────────
+const CHIP_SETS = [
+  [
+    { emoji: '😰', text: 'Aku lagi cemas banget' },
+    { emoji: '😢', text: 'Aku ngerasa sedih belakangan ini' },
+    { emoji: '😮‍💨', text: 'Aku kelelahan dan overwhelmed' },
+    { emoji: '💙', text: 'Aku butuh seseorang untuk dengerin' },
+  ],
+  [
+    { emoji: '😔', text: 'Iya, aku ngerasain itu banget' },
+    { emoji: '🤔', text: 'Gimana caranya biar lebih baik?' },
+    { emoji: '😞', text: 'Aku udah coba tapi susah banget' },
+    { emoji: '💭', text: 'Aku masih bingung dengan perasaanku' },
+  ],
+  [
+    { emoji: '😓', text: 'Ini sudah lama aku rasakan' },
+    { emoji: '🙏', text: 'Aku butuh saran yang lebih konkret' },
+    { emoji: '😌', text: 'Aku merasa sedikit lebih lega sekarang' },
+    { emoji: '❓', text: 'Apa yang sebaiknya aku lakukan?' },
+  ],
+  [
+    { emoji: '💪', text: 'Aku mau coba bangkit lagi' },
+    { emoji: '😶', text: 'Aku nggak tahu harus mulai dari mana' },
+    { emoji: '🥺', text: 'Aku takut cerita ke orang lain' },
+    { emoji: '✨', text: 'Aku pengen jadi versi yang lebih baik' },
+  ],
+  [
+    { emoji: '🌱', text: 'Cerita ini membuatku sedikit lega' },
+    { emoji: '🤝', text: 'Aku ingin punya support system yang kuat' },
+    { emoji: '💤', text: 'Aku susah tidur karena pikiran ini' },
+    { emoji: '🌈', text: 'Ada nggak harapan untuk bisa lebih baik?' },
+  ],
 ];
 
-const EMOTION_LABELS = {
-  happy: '😊 Senang', sad: '😢 Sedih', anxious: '😰 Cemas',
-  angry: '😠 Marah', neutral: '😐 Netral',
-};
+function getChips(turn) {
+  if (turn === 0) return CHIP_SETS[0];
+  return CHIP_SETS[Math.min(turn, CHIP_SETS.length - 1)];
+}
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function SariAvatar({ size = 36 }) {
+const EMOTION_COLORS = {
+  happy:   { bg: '#EBF6EE', text: '#2D7A4F',  bar: '#5BA970' },
+  sad:     { bg: '#EEF2FA', text: '#2D4E8A',  bar: '#6B85C8' },
+  anxious: { bg: '#FFFBEB', text: '#7A6000',  bar: '#F0B429' },
+  angry:   { bg: '#FFF0F5', text: '#9A3558',  bar: '#E596B2' },
+  neutral: { bg: '#F5F6F8', text: '#5A6472',  bar: '#A8B4C8' },
+};
+const EMOTION_LABELS = { happy: 'Senang', sad: 'Sedih', anxious: 'Cemas', angry: 'Marah', neutral: 'Netral' };
+
+// ─── Emotion breakdown bars ───────────────────────────────────────────────────
+function EmotionBreakdown({ scores }) {
+  if (!scores) return null;
+  const sorted = Object.entries(scores)
+    .map(([k, v]) => ({ key: k, pct: Math.round(v * 100) }))
+    .sort((a, b) => b.pct - a.pct);
   return (
-    <div
-      className="rounded-full flex items-center justify-center shrink-0 text-lg leading-none"
-      style={{
-        width: size, height: size,
-        background: 'linear-gradient(135deg, #FEF0F5, #F9C5D8)',
-        border: '2px solid #F5D0DE',
-        fontSize: size * 0.45,
-      }}
+    <motion.div
+      initial={{ opacity: 0, height: 0, marginTop: 0 }}
+      animate={{ opacity: 1, height: 'auto', marginTop: 6 }}
+      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+      transition={{ duration: 0.22 }}
+      className="bg-white/90 border border-[#EEF0F8] rounded-xl px-3 py-2.5 w-44 space-y-1.5"
     >
-      🌸
-    </div>
+      <p className="text-[9px] font-semibold uppercase tracking-widest text-[#C2CAD8] mb-1">Analisis emosi</p>
+      {sorted.map(({ key, pct }) => {
+        const ec = EMOTION_COLORS[key] ?? EMOTION_COLORS.neutral;
+        return (
+          <div key={key} className="flex items-center gap-2">
+            <span className="text-[10px] w-12 shrink-0 font-medium" style={{ color: ec.text }}>
+              {EMOTION_LABELS[key] ?? key}
+            </span>
+            <div className="flex-1 h-1.5 rounded-full bg-[#F0F2F8] overflow-hidden">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: ec.bar }}
+                initial={{ width: 0 }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut', delay: 0.1 }}
+              />
+            </div>
+            <span className="text-[10px] w-7 text-right shrink-0 font-medium" style={{ color: ec.text }}>
+              {pct}%
+            </span>
+          </div>
+        );
+      })}
+    </motion.div>
   );
 }
 
+// ─── Typing indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
   return (
-    <motion.div
-      className="flex items-end gap-2 mb-4"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 4 }}
-    >
-      <SariAvatar size={30}/>
-      <div
-        className="flex items-center gap-1.5 px-4 py-3 rounded-2xl rounded-bl-sm"
-        style={{ background: 'white', border: '1px solid #EEF0F8' }}
-      >
-        {[0, 1, 2].map(i => (
-          <motion.span
-            key={i}
-            className="block w-2 h-2 rounded-full"
-            style={{ background: '#E596B2' }}
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.15 }}
-          />
+    <motion.div className="flex items-end gap-2 justify-start"
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+      <div className="w-7 h-7 rounded-lg bg-[#415f83]/10 flex items-center justify-center shrink-0 text-sm">🌸</div>
+      <div className="bg-white border border-[#EEF0F8] rounded-2xl rounded-bl-md px-4 py-3 flex gap-1">
+        {[0, 1, 2].map(d => (
+          <motion.span key={d} className="w-1.5 h-1.5 rounded-full bg-[#E596B2]"
+            animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: d * 0.15 }} />
         ))}
       </div>
     </motion.div>
   );
 }
 
-function ChatBubble({ msg, onSave }) {
+// ─── Overall emotion analysis panel ──────────────────────────────────────────
+function EmotionPanel({ messages, open, onToggle }) {
+  const analysis = useMemo(() => {
+    const userMsgs = messages.filter(m => m.type === 'user' && m.ts);
+    if (userMsgs.length === 0) return null;
+
+    const scored = userMsgs.filter(m => m.emotionScores);
+    if (scored.length > 0) {
+      const totals = {};
+      scored.forEach(m => {
+        Object.entries(m.emotionScores).forEach(([k, v]) => {
+          totals[k] = (totals[k] || 0) + v;
+        });
+      });
+      const avg = {};
+      Object.entries(totals).forEach(([k, v]) => { avg[k] = v / scored.length; });
+      const dominant = Object.entries(avg).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'neutral';
+      return { scores: avg, dominant, total: scored.length };
+    }
+
+    const labeled = userMsgs.filter(m => m.emotion);
+    if (labeled.length === 0) return null;
+    const counts = {};
+    labeled.forEach(m => { counts[m.emotion] = (counts[m.emotion] || 0) + 1; });
+    const scores = {};
+    Object.entries(counts).forEach(([k, v]) => { scores[k] = v / labeled.length; });
+    const dominant = Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'neutral';
+    return { scores, dominant, total: labeled.length };
+  }, [messages]);
+
+  const dominant = analysis?.dominant ?? 'neutral';
+  const dc = EMOTION_COLORS[dominant] ?? EMOTION_COLORS.neutral;
+
+  return (
+    <div className="relative flex shrink-0 h-full">
+      {/* Sliding panel */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="panel"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 228, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            className="h-full overflow-hidden border-r border-[#EEF0F8] bg-white flex flex-col shrink-0"
+            style={{ minWidth: 0 }}
+          >
+            {/* Panel header */}
+            <div className="shrink-0 px-4 py-3 flex items-center justify-between"
+              style={{ borderBottom: '1px solid #EEF0F8' }}>
+              <div className="flex items-center gap-2">
+                <BarChart2 size={13} style={{ color: '#415f83' }} />
+                <span className="text-xs font-semibold whitespace-nowrap" style={{ color: '#1A2840' }}>Analisis Emosi</span>
+              </div>
+              <button onClick={onToggle}
+                className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-[#F0F4FF]">
+                <ChevronLeft size={13} style={{ color: '#A8B4C8' }} />
+              </button>
+            </div>
+
+            {/* Panel body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {!analysis ? (
+                <div className="flex flex-col items-center justify-center h-full py-8 gap-3">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: '#F0F4FF' }}>
+                    <BarChart2 size={16} style={{ color: '#415f83' }} />
+                  </div>
+                  <p className="text-[11px] text-center leading-relaxed" style={{ color: '#C2CAD8' }}>
+                    Mulai ngobrol untuk melihat analisis emosimu
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Dominant emotion card */}
+                  <div className="rounded-2xl p-3.5 text-center" style={{ background: dc.bg }}>
+                    <p className="text-[10px] font-medium mb-1" style={{ color: dc.text + 'BB' }}>Emosi dominan</p>
+                    <p className="text-base font-bold leading-tight" style={{ color: dc.text }}>
+                      {EMOTION_LABELS[dominant] ?? dominant}
+                    </p>
+                    <p className="text-[10px] mt-1" style={{ color: dc.text + '99' }}>
+                      dari {analysis.total} pesan dianalisis
+                    </p>
+                  </div>
+
+                  {/* Distribution bars */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#C2CAD8' }}>Distribusi</p>
+                    {Object.entries(analysis.scores)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([key, val]) => {
+                        const ec = EMOTION_COLORS[key] ?? EMOTION_COLORS.neutral;
+                        const pct = Math.round(val * 100);
+                        return (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-medium" style={{ color: ec.text }}>
+                                {EMOTION_LABELS[key] ?? key}
+                              </span>
+                              <span className="text-[11px] font-bold" style={{ color: ec.text }}>{pct}%</span>
+                            </div>
+                            <div className="h-2 rounded-full overflow-hidden" style={{ background: '#F0F2F8' }}>
+                              <motion.div
+                                className="h-full rounded-full"
+                                style={{ background: ec.bar }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.55, ease: 'easeOut', delay: 0.08 }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toggle tab — always visible on the right edge */}
+      <button
+        onClick={onToggle}
+        title={open ? 'Tutup panel' : 'Lihat analisis emosi'}
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full z-10 flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-r-xl transition-colors"
+        style={{
+          background: 'white',
+          border: '1px solid #EEF0F8',
+          borderLeft: 'none',
+          boxShadow: '2px 0 8px rgba(65,95,131,0.08)',
+        }}
+      >
+        {open
+          ? <ChevronLeft size={13} style={{ color: '#415f83' }} />
+          : <ChevronRight size={13} style={{ color: '#A8B4C8' }} />
+        }
+        <BarChart2 size={12} style={{ color: open ? '#415f83' : '#C2CAD8' }} />
+        {!open && analysis && (
+          <span className="w-2 h-2 rounded-full" style={{ background: dc.bar }} />
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Chat bubble ──────────────────────────────────────────────────────────────
+function ChatBubble({ msg, onSaveJournal }) {
   const isUser = msg.type === 'user';
   const [hovered, setHovered] = useState(false);
+  const ec = EMOTION_COLORS[msg.emotion] || EMOTION_COLORS.neutral;
+
   return (
     <motion.div
-      className={`flex items-end gap-2 mb-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {!isUser && <SariAvatar size={30}/>}
-
-      <div className={`flex flex-col gap-1 max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
+      {!isUser && (
+        <div className="w-7 h-7 rounded-lg bg-[#415f83]/10 flex items-center justify-center shrink-0 mb-0.5 text-sm">🌸</div>
+      )}
+      <div className={`flex flex-col gap-1 max-w-[76%] ${isUser ? 'items-end' : 'items-start'}`}>
         {!isUser && (
           <span className="text-[10px] font-semibold px-1" style={{ color: '#E596B2' }}>Sari</span>
         )}
-
         <div
-          className={`px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-            isUser ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl rounded-bl-sm'
-          }`}
-          style={isUser ? {
-            background: '#415f83',
-            color: 'white',
-          } : {
-            background: 'white',
-            color: '#2A3A4A',
-            border: '1px solid #EEF0F8',
-          }}
+          className="px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
+          style={isUser
+            ? { background: '#415f83', color: 'white', borderBottomRightRadius: 6 }
+            : { background: 'white', color: '#1A2840', borderBottomLeftRadius: 6, border: '1px solid #EEF0F8' }}
         >
           {msg.text}
         </div>
-
         <div className={`flex items-center gap-2 px-1 ${isUser ? 'flex-row-reverse' : ''}`}>
           {msg.ts && (
-            <span className="text-[10px]" style={{ color: '#C8D4DC' }}>
+            <span className="text-[10px] text-[#C8D4DC]">
               {new Date(msg.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
           {isUser && msg.emotion && msg.emotion !== 'neutral' && (
-            <span className="text-[9px] px-2 py-0.5 rounded-full" style={{ background: '#FEF0F5', color: '#C97898' }}>
+            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full"
+              style={{ background: ec.bg, color: ec.text }}>
               {EMOTION_LABELS[msg.emotion]}
             </span>
           )}
@@ -125,38 +307,49 @@ function ChatBubble({ msg, onSave }) {
             <AnimatePresence>
               {(hovered || msg.saved) && (
                 <motion.button
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={() => !msg.saved && onSave(msg.text)}
+                  initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }} transition={{ duration: 0.15 }}
+                  onClick={() => !msg.saved && onSaveJournal(msg.text)}
                   disabled={msg.saved}
                   className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors"
                   style={msg.saved
                     ? { background: '#EEF9F0', color: '#5BA970', border: '1px solid #C0E4C8' }
-                    : { background: '#EEF2FA', color: '#415f83', border: '1px solid #D0DCEE' }
-                  }
+                    : { background: '#EEF2FA', color: '#415f83', border: '1px solid #D0DCEE' }}
                 >
-                  {msg.saved ? <>✓ Tersimpan</> : <><BookOpen size={9}/> Simpan ke Jurnal</>}
+                  {msg.saved ? '✓ Tersimpan' : <><BookOpen size={9} /> Simpan ke Jurnal</>}
                 </motion.button>
               )}
             </AnimatePresence>
           )}
         </div>
+        <AnimatePresence>
+          {isUser && hovered && msg.emotionScores && (
+            <EmotionBreakdown scores={msg.emotionScores} />
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+const WELCOME = {
+  type: 'ai',
+  text: 'Halo! Aku Sari 🌸\n\nSenang bisa ngobrol sama kamu lagi. Nggak ada yang dihakimi di sini — ceritain aja apa yang kamu rasakan.\n\nGimana perasaanmu hari ini?',
+  ts: null,
+};
+
 export default function ChatPage() {
-  const router   = useRouter();
-  const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState([WELCOME_MSG]);
-  const [input, setInput]     = useState('');
+  const router = useRouter();
+  const [user, setUser]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [messages, setMessages] = useState([WELCOME]);
+  const [input, setInput]       = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [turnCount, setTurnCount] = useState(0);
+  const [chips, setChips]       = useState(CHIP_SETS[0]);
   const [journalDraft, setJournalDraft] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -169,7 +362,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, chips]);
 
   const loadHistory = async () => {
     try {
@@ -180,30 +373,40 @@ export default function ChatPage() {
         chats.forEach(c => {
           const ts = c.created_at ? new Date(c.created_at).toISOString() : null;
           msgs.push({ type: 'user', text: c.message, ts, emotion: c.emotion_result });
-          if (c.coping_strategy) {
-            msgs.push({ type: 'ai', text: c.coping_strategy, ts });
-          }
+          if (c.coping_strategy) msgs.push({ type: 'ai', text: c.coping_strategy, ts });
         });
-        setMessages([WELCOME_MSG, ...msgs]);
+        setMessages([WELCOME, ...msgs]);
+        const userCount = chats.length;
+        setTurnCount(userCount);
+        setChips(getChips(userCount));
       }
-    } catch { /* keep welcome message */ }
-    finally   { setLoading(false); }
+    } catch { /* keep welcome */ }
+    finally { setLoading(false); }
   };
 
-  const sendMessage = async (text) => {
-    const msg = (text || input).trim();
+  const sendMessage = useCallback(async (text) => {
+    const msg = (text ?? input).trim();
     if (!msg || isTyping) return;
     setInput('');
+    setChips([]);
     setMessages(prev => [...prev, { type: 'user', text: msg, ts: new Date().toISOString() }]);
     setIsTyping(true);
+    const newTurn = turnCount + 1;
+    setTurnCount(newTurn);
     try {
       const res  = await chatAPI.sendMessage({ message: msg });
       const chat = res.data.chat;
+      const emotionScores = res.data.emotionScores ?? null;
+      // Attach emotion label + scores to the user message we already pushed
+      setMessages(prev => prev.map((m, i) =>
+        i === prev.length - 1 ? { ...m, emotion: chat.emotion_result, emotionScores } : m
+      ));
       setMessages(prev => [...prev, {
         type: 'ai',
         text: chat.coping_strategy || 'Aku di sini untukmu 💙',
         ts: chat.created_at ? new Date(chat.created_at).toISOString() : new Date().toISOString(),
       }]);
+      setTimeout(() => setChips(getChips(newTurn)), 400);
     } catch {
       toast.error('Gagal menghubungi Sari');
       setMessages(prev => [...prev, {
@@ -211,187 +414,193 @@ export default function ChatPage() {
         text: 'Maaf, koneksi sedang bermasalah. Coba lagi ya 🙏',
         ts: new Date().toISOString(),
       }]);
+      setChips(getChips(turnCount));
     } finally {
       setIsTyping(false);
       inputRef.current?.focus();
     }
+  }, [input, isTyping, turnCount]);
+
+  const resetChat = () => {
+    setMessages([WELCOME]);
+    setInput('');
+    setTurnCount(0);
+    setChips(CHIP_SETS[0]);
   };
 
   const handleSaveJournal = async ({ mood, title, text }) => {
-    const content = `Hari ini aku merasakan...\n${text}`;
-    await journalAPI.create({ mood, title: title.trim(), content });
+    await journalAPI.create({ mood, title: title.trim(), content: `Hari ini aku merasakan...\n${text}` });
     toast.success('Tersimpan ke jurnal! 📖');
-    if (journalDraft?.idx !== undefined && journalDraft.idx >= 0) {
+    if (journalDraft?.idx !== undefined) {
       setMessages(prev => prev.map((m, i) => i === journalDraft.idx ? { ...m, saved: true } : m));
     }
   };
 
   const handleLogout = () => { removeToken(); router.push('/login'); };
 
-  if (loading) return <PageLoader/>;
+  if (loading) return <PageLoader />;
 
-  const showQuickReplies = messages.length === 1 && !isTyping;
+  const showChips = chips.length > 0 && !isTyping;
 
   return (
     <>
-    <DashboardShell user={user} onLogout={handleLogout} mainClassName="overflow-hidden flex flex-col">
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <DashboardShell user={user} onLogout={handleLogout} mainClassName="overflow-hidden flex flex-col">
+        <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* ── Header ── */}
-        <div
-          className="flex items-center gap-3 px-4 sm:px-6 py-4 bg-white shrink-0"
-          style={{ borderBottom: '1px solid #EEF0F8' }}
-        >
-          <SariAvatar size={44}/>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm leading-tight" style={{ color: '#1A2840' }}>Sari</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#5BA970' }}/>
-              <span className="text-xs truncate" style={{ color: '#A8B4C8' }}>Pendamping kesehatan mental</span>
+          {/* ── Header — same dark style as landing ── */}
+          <div className="bg-[#415f83] px-5 py-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-xl">🌸</div>
+              <div>
+                <p className="text-white font-semibold text-sm">Sari</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#5BA970]" />
+                  <span className="text-white/60 text-xs">AI Companion · {user?.name?.split(' ')[0]}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-2.5 py-1.5">
+                <Sparkles size={11} className="text-white/70" />
+                <span className="text-white/70 text-xs font-medium">AI</span>
+              </div>
+              <Link href="/chat/history">
+                <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 rounded-xl px-2.5 py-1.5 transition-colors cursor-pointer">
+                  <History size={13} className="text-white/80" />
+                  <span className="text-white/80 text-xs font-medium hidden sm:inline">Riwayat</span>
+                </div>
+              </Link>
+              <button onClick={resetChat} title="Mulai percakapan baru"
+                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <RefreshCw size={14} className="text-white/80" />
+              </button>
             </div>
           </div>
-          <Link href="/chat/history">
-            <span
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full shrink-0 transition-colors cursor-pointer"
-              style={{ background: '#F0F4FA', color: '#6B85A8' }}
-            >
-              <History size={13}/> Riwayat
-            </span>
-          </Link>
-          <div
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full shrink-0"
-            style={{ background: '#F0F4FA', color: '#6B85A8' }}
-          >
-            <Sparkles size={11}/> AI
+
+          {/* ── Body: panel + chat ── */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Emotion analysis panel */}
+            <EmotionPanel messages={messages} open={panelOpen} onToggle={() => setPanelOpen(p => !p)} />
+
+            {/* Chat column */}
+            <div className="flex flex-col flex-1 overflow-hidden">
+
+          {/* ── Messages ── */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
+            <AnimatePresence initial={false}>
+              {messages.map((msg, i) => (
+                <ChatBubble key={i} msg={msg}
+                  onSaveJournal={(text) => setJournalDraft({ text, idx: i })} />
+              ))}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {isTyping && <TypingIndicator />}
+            </AnimatePresence>
+
+            <div ref={bottomRef} />
           </div>
-        </div>
 
-        {/* ── Messages area ── */}
-        <div
-          className="flex-1 overflow-y-auto px-5 py-5"
-          style={{ background: '#F8F9FC' }}
-        >
+          {/* ── Quick reply chips ── */}
           <AnimatePresence>
-            {messages.map((msg, i) => (
-              <ChatBubble key={i} msg={msg} onSave={(text) => setJournalDraft({ text, idx: i })}/>
-            ))}
-          </AnimatePresence>
-
-          {/* Quick reply chips */}
-          <AnimatePresence>
-            {showQuickReplies && (
+            {showChips && (
               <motion.div
-                className="flex flex-wrap gap-2 mt-1 mb-4 ml-10"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.4 }}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="border-t border-[#EEF0F8] bg-[#F8FAFF] px-4 py-3 overflow-x-auto shrink-0"
+                style={{ scrollbarWidth: 'none' }}
               >
-                {QUICK_REPLIES.map((qr, i) => (
-                  <motion.button
-                    key={i}
-                    onClick={() => sendMessage(qr)}
-                    className="px-4 py-2 rounded-full text-xs font-medium border transition-all"
-                    style={{ background: 'white', borderColor: '#EEF0F8', color: '#6B85A8' }}
-                    whileHover={{ borderColor: '#E596B2', color: '#E596B2', scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 + i * 0.07 }}
-                  >
-                    {qr}
-                  </motion.button>
-                ))}
+                <div className="flex gap-2 w-max">
+                  {chips.map((chip, i) => (
+                    <motion.button
+                      key={chip.text}
+                      initial={{ opacity: 0, scale: 0.88, y: 6 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ delay: i * 0.06, duration: 0.2 }}
+                      onClick={() => sendMessage(chip.text)}
+                      className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium px-3.5 py-2 rounded-full border transition-all"
+                      style={{ background: 'white', borderColor: '#D5E0EE', color: '#415f83' }}
+                      whileHover={{ borderColor: '#415f83', background: '#EEF2FA', scale: 1.03 }}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <span>{chip.emoji}</span>
+                      {chip.text}
+                    </motion.button>
+                  ))}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {isTyping && <TypingIndicator/>}
-          </AnimatePresence>
-
-          <div ref={bottomRef}/>
-        </div>
-
-        {/* ── Input bar ── */}
-        <div className="bg-white shrink-0 px-4 pb-5 pt-3" style={{ borderTop: '1px solid #EEF0F8' }}>
-          <div className="flex items-center gap-2">
-            <div
-              className="flex-1 flex items-center gap-2 rounded-2xl px-4 py-3 transition-all"
-              style={{ background: '#F4F6FB', border: '1.5px solid #EEF0F8' }}
-            >
-              <input
+          {/* ── Input bar ── */}
+          <div className="border-t border-[#EEF0F8] bg-white px-4 py-3 shrink-0">
+            <div className="flex items-end gap-2">
+              <textarea
                 ref={inputRef}
+                rows={1}
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
-                placeholder="Ketik pesanmu untuk Sari..."
-                className="flex-1 bg-transparent outline-none text-sm"
-                style={{ color: '#1A2840' }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                 disabled={isTyping}
+                placeholder="Atau ketik pesanmu sendiri..."
+                className="flex-1 bg-[#F2F6FC] border border-[#D5E0EE] rounded-xl px-4 py-2.5 text-sm text-[#1A2840] placeholder:text-[#A8B4C8] focus:outline-none focus:border-[#415f83] focus:bg-white transition-all resize-none disabled:opacity-50"
+                style={{ maxHeight: 120 }}
               />
+              <motion.button
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || isTyping}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+                style={{ background: '#415f83' }}
+                whileHover={{ background: '#344D6E' }}
+                whileTap={{ scale: 0.93 }}
+              >
+                <Send size={16} className="text-white" />
+              </motion.button>
             </div>
-            <motion.button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || isTyping}
-              className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0 disabled:opacity-50"
-              style={{ background: '#415f83' }}
-              whileHover={{ scale: 1.05, background: '#344D6E' }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {isTyping
-                ? <Loader2 size={17} className="animate-spin"/>
-                : <Send size={17}/>
-              }
-            </motion.button>
+            <p className="text-center text-[10px] mt-2 text-[#C8D4DC]">
+              Sari adalah AI — bukan pengganti terapis profesional. 🙏
+            </p>
           </div>
-          <p className="text-center text-[10px] mt-2.5" style={{ color: '#C8D4DC' }}>
-            Sari adalah AI — bukan pengganti terapis profesional. 🙏
-          </p>
-        </div>
 
-      </div>
-    </DashboardShell>
+            </div>{/* end chat column */}
+          </div>{/* end body row */}
+        </div>{/* end outer flex-col */}
+      </DashboardShell>
 
-    <AnimatePresence>
-      {journalDraft !== null && (
-        <SaveJournalModal
-          text={journalDraft.text}
-          onClose={() => setJournalDraft(null)}
-          onSave={handleSaveJournal}
-        />
-      )}
-    </AnimatePresence>
-
+      <AnimatePresence>
+        {journalDraft !== null && (
+          <SaveJournalModal
+            text={journalDraft.text}
+            onClose={() => setJournalDraft(null)}
+            onSave={handleSaveJournal}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
 
 // ─── Save to Journal Modal ────────────────────────────────────────────────────
 function SaveJournalModal({ text, onClose, onSave }) {
-  const [mood, setMood]   = useState('neutral');
-  const [title, setTitle] = useState('');
+  const [mood, setMood]     = useState('neutral');
+  const [title, setTitle]   = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await onSave({ mood, title, text });
-      onClose();
-    } catch {
-      toast.error('Gagal menyimpan jurnal');
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave({ mood, title, text }); onClose(); }
+    catch { toast.error('Gagal menyimpan jurnal'); }
+    finally { setSaving(false); }
   };
 
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(15,25,45,0.45)' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={onClose}
     >
       <motion.div
@@ -402,47 +611,38 @@ function SaveJournalModal({ text, onClose, onSave }) {
         transition={{ duration: 0.2, ease: 'easeOut' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* header */}
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #EEF0F8' }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#EEF2FA' }}>
-              <BookOpen size={13} style={{ color: '#415f83' }}/>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#EEF2FA]">
+              <BookOpen size={13} style={{ color: '#415f83' }} />
             </div>
-            <span className="font-semibold text-sm" style={{ color: '#1A2840' }}>Simpan ke Jurnal</span>
+            <span className="font-semibold text-sm text-[#1A2840]">Simpan ke Jurnal</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg transition-colors hover:bg-[#F4F6FA]" style={{ color: '#A8B4C8' }}>
-            <X size={15}/>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[#F4F6FA] text-[#A8B4C8] transition-colors">
+            <X size={15} />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* preview */}
-          <div
-            className="text-sm leading-relaxed rounded-xl px-4 py-3 max-h-24 overflow-y-auto"
-            style={{ background: '#F8F9FC', color: '#5A6A7A', border: '1px solid #EEF0F8' }}
-          >
+          <div className="text-sm leading-relaxed rounded-xl px-4 py-3 max-h-24 overflow-y-auto bg-[#F8F9FC] text-[#5A6A7A] border border-[#EEF0F8]">
             {text.length > 220 ? text.slice(0, 220) + '…' : text}
           </div>
 
-          {/* title */}
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Judul jurnal (opsional)"
-            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all"
-            style={{ border: '1.5px solid #EEF0F8', background: '#F8FAFF', color: '#1A2840' }}
+            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all border bg-[#F8FAFF] text-[#1A2840]"
+            style={{ borderColor: '#EEF0F8' }}
             onFocus={e => e.target.style.borderColor = '#415f83'}
             onBlur={e => e.target.style.borderColor = '#EEF0F8'}
           />
 
-          {/* mood */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: '#B8C4D0' }}>Mood kamu sekarang</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-2 text-[#B8C4D0]">Mood kamu sekarang</p>
             <div className="flex gap-1.5">
               {MOODS.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setMood(m.id)}
+                <button key={m.id} onClick={() => setMood(m.id)}
                   className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all"
                   style={{
                     background: mood === m.id ? m.color : '#F4F6FA',
@@ -457,18 +657,12 @@ function SaveJournalModal({ text, onClose, onSave }) {
             </div>
           </div>
 
-          {/* actions */}
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors"
-              style={{ border: '1px solid #EEF0F8', color: '#A8B4C8' }}
-            >
+            <button onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-[#EEF0F8] text-[#A8B4C8] transition-colors hover:bg-[#F8F9FC]">
               Batal
             </button>
-            <motion.button
-              onClick={handleSave}
-              disabled={saving}
+            <motion.button onClick={handleSave} disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60"
               style={{ background: '#415f83' }}
               whileHover={{ background: '#344D6E' }}

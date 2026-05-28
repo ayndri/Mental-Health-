@@ -11,6 +11,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
 import AvatarBuilder from '@/components/features/AvatarBuilder';
 import CustomAvatar, { DEFAULT_CONFIG } from '@/components/avatars/CustomAvatar';
+import UserAvatar from '@/components/avatars/UserAvatar';
 import { getMoodById } from '@/components/features/MoodSelector';
 import DashboardShell from '@/components/layout/DashboardShell';
 
@@ -236,7 +237,7 @@ export default function ProfilePage() {
                 className="w-20 h-20 rounded-2xl overflow-hidden"
                 style={{ outline: '3px solid #EEF0F8', background: '#F0F4FA' }}
               >
-                <CustomAvatar config={avatarConfig} size={80}/>
+                <UserAvatar user={user} size={80} />
               </div>
               <button
                 onClick={() => { setTempAvatarConfig(avatarConfig); setAvatarModalOpen(true); }}

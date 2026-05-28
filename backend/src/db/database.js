@@ -59,6 +59,22 @@ async function initSchema() {
       created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await query(`
+    CREATE TABLE IF NOT EXISTS articles (
+      id             SERIAL PRIMARY KEY,
+      slug           TEXT UNIQUE NOT NULL,
+      title          TEXT NOT NULL,
+      excerpt        TEXT NOT NULL,
+      category       TEXT NOT NULL,
+      emotion_tags   TEXT[] DEFAULT '{}',
+      content        JSONB NOT NULL,
+      author         TEXT DEFAULT 'Tim Seribu Cerita',
+      read_time      INTEGER DEFAULT 5,
+      cover_gradient TEXT DEFAULT 'linear-gradient(135deg, #EAF0FA 0%, #C8D8F0 100%)',
+      cover_emoji    TEXT DEFAULT '💙',
+      published_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 initSchema().catch(err => console.error('Schema init error:', err));
