@@ -1,6 +1,6 @@
 'use client';
 
-import { guestChatAPI } from '@/lib/api';
+import { guestChatAPI, articlesAPI } from '@/lib/api';
 import { getStoredUser, isAuthenticated } from '@/lib/auth';
 import { AnimatePresence, motion, useInView } from 'framer-motion';
 import {
@@ -26,110 +26,59 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const MAX_TURNS = 10;
 
 // ─── Ambient sound ────────────────────────────────────────────────────────────
+// Calming royalty-free ambient track (Creative Commons, via Internet Archive).
+// Streamed progressively and looped, with a gentle volume fade in/out.
+const AMBIENT_URL = 'https://archive.org/download/CalmPills/Uplifting_Pills_-_Calm_Pill_56_-_Quiet_Peace.mp3';
+const AMBIENT_VOLUME = 0.45;
+
 function useAmbientSound() {
-  const ctxRef     = useRef(null);
-  const sourcesRef = useRef([]);
-  const masterRef  = useRef(null);
+  const audioRef = useRef(null);
+  const fadeRef  = useRef(null);
   const [playing, setPlaying] = useState(false);
 
-  const stop = useCallback(() => {
-    if (masterRef.current && ctxRef.current) {
-      masterRef.current.gain.linearRampToValueAtTime(0, ctxRef.current.currentTime + 1.5);
-    }
-    setTimeout(() => {
-      sourcesRef.current.forEach(s => { try { s.stop?.(); s.disconnect?.(); } catch {} });
-      sourcesRef.current = [];
-      ctxRef.current?.close();
-      ctxRef.current = null;
-      masterRef.current = null;
-    }, 1600);
-    setPlaying(false);
+  const fadeTo = useCallback((target, onDone) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (fadeRef.current) clearInterval(fadeRef.current);
+    const step = (target - audio.volume) / 30; // ~1.5s fade over 30 ticks
+    fadeRef.current = setInterval(() => {
+      let v = audio.volume + step;
+      if ((step >= 0 && v >= target) || (step < 0 && v <= target) || step === 0) {
+        v = target;
+        clearInterval(fadeRef.current);
+        fadeRef.current = null;
+        onDone?.();
+      }
+      audio.volume = Math.min(1, Math.max(0, v));
+    }, 50);
   }, []);
 
   const start = useCallback(() => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      ctxRef.current = ctx;
-      const master = ctx.createGain();
-      master.gain.setValueAtTime(0, ctx.currentTime);
-      master.gain.linearRampToValueAtTime(0.14, ctx.currentTime + 4);
-      master.connect(ctx.destination);
-      masterRef.current = master;
-
-      // ── Gentle "ocean swell" noise: soft brown noise, heavily filtered,
-      //    with a slow wave-like ebb and flow ─────────────────────────────
-      const bufSize = ctx.sampleRate * 8;
-      const buf = ctx.createBuffer(2, bufSize, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = buf.getChannelData(ch);
-        let last = 0;
-        for (let i = 0; i < bufSize; i++) {
-          const w = Math.random() * 2 - 1;
-          d[i] = (last + 0.015 * w) / 1.015;
-          last = d[i];
-          d[i] *= 2.2;
-        }
-        // crossfade the buffer ends so the loop seam is inaudible
-        const fade = ctx.sampleRate * 0.5;
-        for (let i = 0; i < fade; i++) {
-          const k = i / fade;
-          d[i] = d[i] * k + d[bufSize - fade + i] * (1 - k);
-        }
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buf;
-      noise.loop = true;
-      const lpf = ctx.createBiquadFilter();
-      lpf.type = 'lowpass';
-      lpf.frequency.value = 220;
-      lpf.Q.value = 0.5;
-      const ng = ctx.createGain();
-      ng.gain.value = 0.18;
-      // slow swell so the noise breathes like distant waves
-      const swell = ctx.createOscillator();
-      const swellG = ctx.createGain();
-      swell.type = 'sine'; swell.frequency.value = 0.05;
-      swellG.gain.value = 0.09;
-      swell.connect(swellG); swellG.connect(ng.gain);
-      noise.connect(lpf); lpf.connect(ng); ng.connect(master);
-      noise.start(); swell.start();
-      sourcesRef.current.push(noise, swell);
-
-      // ── Harmonic drone pad: root + fifth + octave + gentle high third.
-      //    All consonant, so they blend into a warm chord instead of
-      //    clashing the way the old Solfeggio tones did. ─────────────────
-      [
-        { freq: 130.81, vol: 0.060, lfo: 0.045 }, // C3 root
-        { freq: 196.00, vol: 0.040, lfo: 0.038 }, // G3 perfect fifth
-        { freq: 261.63, vol: 0.028, lfo: 0.052 }, // C4 octave
-        { freq: 329.63, vol: 0.014, lfo: 0.041 }, // E4 major third (soft shimmer)
-      ].forEach(({ freq, vol, lfo: lfoRate }, i) => {
-        const osc = ctx.createOscillator();
-        const og  = ctx.createGain();
-        const lpfOsc = ctx.createBiquadFilter();
-        const lfoOsc = ctx.createOscillator();
-        const lfoG   = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.value = freq;
-        // warm off the top end so the tones feel rounded, not piercing
-        lpfOsc.type = 'lowpass'; lpfOsc.frequency.value = 900; lpfOsc.Q.value = 0.4;
-        og.gain.value = vol;
-        // slow, shallow breathing — no jittery tremolo
-        lfoOsc.frequency.value = lfoRate; lfoG.gain.value = vol * 0.25;
-        lfoOsc.connect(lfoG); lfoG.connect(og.gain);
-        osc.connect(lpfOsc); lpfOsc.connect(og); og.connect(master);
-        const t = ctx.currentTime + i * 0.9;
-        osc.start(t); lfoOsc.start(t);
-        sourcesRef.current.push(osc, lfoOsc);
-      });
-
-      setPlaying(true);
-    } catch (err) {
-      console.error('Audio error:', err);
+    let audio = audioRef.current;
+    if (!audio) {
+      audio = new Audio(AMBIENT_URL);
+      audio.loop = true;
+      audio.preload = 'auto';
+      audioRef.current = audio;
     }
-  }, []);
+    audio.volume = 0;
+    audio.play()
+      .then(() => { setPlaying(true); fadeTo(AMBIENT_VOLUME); })
+      .catch(err => console.error('Audio play error:', err));
+  }, [fadeTo]);
+
+  const stop = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    fadeTo(0, () => audio.pause());
+    setPlaying(false);
+  }, [fadeTo]);
 
   const toggle = useCallback(() => { if (playing) stop(); else start(); }, [playing, start, stop]);
-  useEffect(() => () => { sourcesRef.current.forEach(s => { try { s.stop?.(); } catch {} }); ctxRef.current?.close(); }, []);
+  useEffect(() => () => {
+    if (fadeRef.current) clearInterval(fadeRef.current);
+    audioRef.current?.pause();
+  }, []);
   return { playing, toggle };
 }
 
@@ -249,6 +198,13 @@ function GuestChat({ loggedIn = false }) {
 
       setHistory(updatedHistory);
       setMessages(prev => [...prev, { from: 'sari', text: reply }]);
+
+      // Recommend articles based on the emotion detected this turn
+      if (res.data.emotion) {
+        articlesAPI.getRecommended(res.data.emotion)
+          .then(r => setRecommendedArticles(r.data.articles ?? []))
+          .catch(() => {});
+      }
 
       if (newTurn >= MAX_TURNS) {
         setDone(true);
@@ -390,6 +346,39 @@ function GuestChat({ loggedIn = false }) {
 
           <div ref={bottomRef} />
         </div>
+
+        {/* Article recommendations — updates with the detected emotion each turn */}
+        <AnimatePresence>
+          {!done && recommendedArticles.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="border-t border-[#EEF0F8] bg-white px-4 py-3"
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <BookOpen size={12} style={{ color: '#415f83' }} />
+                <p className="text-[10px] font-semibold text-[#1A2840] uppercase tracking-wide">Artikel untukmu</p>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {recommendedArticles.map(art => (
+                  <Link key={art.slug} href={`/articles/${art.slug}`}
+                    className="flex items-center gap-2 shrink-0 max-w-[220px] p-2 rounded-xl border border-[#EEF0F8] bg-[#F8FAFF] hover:bg-white hover:shadow-[0_2px_12px_rgba(65,95,131,0.08)] transition-all group">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                      style={{ background: art.cover_gradient }}>
+                      {art.cover_emoji}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-[#1A2840] leading-tight group-hover:text-[#415f83] transition-colors line-clamp-1">{art.title}</p>
+                      <p className="text-[10px] text-[#A8B4C8] mt-0.5">{art.read_time} menit · {art.category}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Quick reply chips */}
         <AnimatePresence>
