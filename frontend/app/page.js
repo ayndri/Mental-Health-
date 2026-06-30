@@ -26,15 +26,31 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const MAX_TURNS = 10;
 
 // ─── Ambient sound ────────────────────────────────────────────────────────────
-// Calming royalty-free ambient track (Creative Commons, via Internet Archive).
-// Streamed progressively and looped, with a gentle volume fade in/out.
-const AMBIENT_URL = 'https://archive.org/download/CalmPills/Uplifting_Pills_-_Calm_Pill_56_-_Quiet_Peace.mp3';
+// Calming royalty-free relaxation track (Creative Commons, via Internet Archive).
+// Short (~3.5 min, ~9 MB) so it buffers fast; looped, with a gentle fade in/out.
+const AMBIENT_URL = 'https://archive.org/download/best-relaxation-music-2019/Best%20Relaxation%20Music%20%282019%29/07.%20%20Tranquility%20Spa%20Universe%20%20-%20%20Peaceful%20Music.mp3';
 const AMBIENT_VOLUME = 0.45;
 
 function useAmbientSound() {
   const audioRef = useRef(null);
   const fadeRef  = useRef(null);
   const [playing, setPlaying] = useState(false);
+
+  // Create the element up front and start buffering, so the first click
+  // plays (almost) instantly instead of waiting on the network.
+  useEffect(() => {
+    const audio = new Audio(AMBIENT_URL);
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0;
+    audio.load();
+    audioRef.current = audio;
+    return () => {
+      if (fadeRef.current) clearInterval(fadeRef.current);
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
 
   const fadeTo = useCallback((target, onDone) => {
     const audio = audioRef.current;
@@ -54,17 +70,14 @@ function useAmbientSound() {
   }, []);
 
   const start = useCallback(() => {
-    let audio = audioRef.current;
-    if (!audio) {
-      audio = new Audio(AMBIENT_URL);
-      audio.loop = true;
-      audio.preload = 'auto';
-      audioRef.current = audio;
-    }
+    const audio = audioRef.current;
+    if (!audio) return;
     audio.volume = 0;
+    // Flip the UI immediately; correct it only if playback actually fails.
+    setPlaying(true);
     audio.play()
-      .then(() => { setPlaying(true); fadeTo(AMBIENT_VOLUME); })
-      .catch(err => console.error('Audio play error:', err));
+      .then(() => fadeTo(AMBIENT_VOLUME))
+      .catch(err => { console.error('Audio play error:', err); setPlaying(false); });
   }, [fadeTo]);
 
   const stop = useCallback(() => {
@@ -75,10 +88,6 @@ function useAmbientSound() {
   }, [fadeTo]);
 
   const toggle = useCallback(() => { if (playing) stop(); else start(); }, [playing, start, stop]);
-  useEffect(() => () => {
-    if (fadeRef.current) clearInterval(fadeRef.current);
-    audioRef.current?.pause();
-  }, []);
   return { playing, toggle };
 }
 
@@ -138,6 +147,26 @@ function getChips(turn) {
   return CHIP_SETS[idx];
 }
 
+// Pull a short list of actionable takeaways from an article's content blocks,
+// so a stressed reader gets the gist without reading the whole thing.
+function extractKeyPoints(content) {
+  if (!Array.isArray(content)) return [];
+  const actionRe = /(lakukan|cara|mengatasi|atasi|tips|membantu|memutus|langkah|strategi|coba|redakan|tenang)/i;
+  let firstUl = null, actionUl = null;
+  for (let i = 0; i < content.length; i++) {
+    const b = content[i];
+    if (b?.type === 'ul' && Array.isArray(b.items) && b.items.length) {
+      if (!firstUl) firstUl = b.items;
+      let heading = '';
+      for (let j = i - 1; j >= 0; j--) {
+        if (content[j]?.type === 'h2') { heading = content[j].text || ''; break; }
+      }
+      if (!actionUl && actionRe.test(heading)) actionUl = b.items;
+    }
+  }
+  return (actionUl || firstUl || []).slice(0, 5);
+}
+
 function GuestChat({ loggedIn = false }) {
   const [messages, setMessages]         = useState([{ from: 'sari', text: GREETING }]);
   const [history, setHistory]           = useState([]);
@@ -148,15 +177,24 @@ function GuestChat({ loggedIn = false }) {
   const [summary, setSummary]           = useState(null);
   const [recommendedArticles, setRecommendedArticles] = useState([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [loadingArticleSlug, setLoadingArticleSlug] = useState(null);
   const [done, setDone]                 = useState(false);
   const bottomRef  = useRef(null);
+  const lastMsgRef = useRef(null);
   const inputRef   = useRef(null);
   const chipsRef   = useRef(null);
   const sectionRef = useRef(null);
   const inView = useInView(sectionRef, { once: true, margin: '-60px' });
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const last = messages[messages.length - 1];
+    // For article-point cards, ease to the TOP of the card so it reads from
+    // the start; for normal messages, keep following the bottom of the chat.
+    if (last?.type === 'article') {
+      lastMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, chips, loadingSummary]);
 
   const fetchSummary = useCallback(async (finalHistory) => {
@@ -236,6 +274,37 @@ function GuestChat({ loggedIn = false }) {
     sendText(text);
   };
 
+  // Clicking a recommended article: fetch it and let Sari drop the key
+  // points straight into the chat (no long read for someone who's stressed).
+  const openArticlePoints = useCallback(async (art) => {
+    if (loadingArticleSlug) return;
+    setLoadingArticleSlug(art.slug);
+    try {
+      const res = await articlesAPI.getBySlug(art.slug);
+      const a = res.data.article || {};
+      const points = extractKeyPoints(a.content);
+      setMessages(prev => [...prev, {
+        from: 'sari',
+        type: 'article',
+        article: {
+          slug: art.slug,
+          title: a.title || art.title,
+          read_time: a.read_time || art.read_time,
+          cover_emoji: art.cover_emoji,
+          cover_gradient: art.cover_gradient,
+          points: points.length ? points : [a.excerpt || art.excerpt].filter(Boolean),
+        },
+      }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        from: 'sari',
+        text: 'Maaf, aku gagal mengambil ringkasan artikelnya. Coba buka artikelnya langsung ya 💙',
+      }]);
+    } finally {
+      setLoadingArticleSlug(null);
+    }
+  }, [loadingArticleSlug]);
+
   const reset = () => {
     setMessages([{ from: 'sari', text: GREETING }]);
     setHistory([]);
@@ -308,18 +377,46 @@ function GuestChat({ loggedIn = false }) {
         <div className="h-80 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              <motion.div key={i} ref={i === messages.length - 1 ? lastMsgRef : null}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
                 className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {msg.from === 'sari' && (
                   <div className="w-7 h-7 rounded-lg bg-[#415f83]/10 flex items-center justify-center shrink-0 text-sm mb-0.5">🌿</div>
                 )}
-                <div className="max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
-                  style={msg.from === 'sari'
-                    ? { background: 'white', color: '#1A2840', borderBottomLeftRadius: 6, border: '1px solid #EEF0F8' }
-                    : { background: '#415f83', color: 'white', borderBottomRightRadius: 6 }}>
-                  {msg.text}
-                </div>
+                {msg.type === 'article' ? (
+                  <div className="max-w-[82%] rounded-2xl bg-white border border-[#EEF0F8] overflow-hidden"
+                    style={{ borderBottomLeftRadius: 6 }}>
+                    <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                        style={{ background: msg.article.cover_gradient }}>
+                        {msg.article.cover_emoji}
+                      </div>
+                      <p className="text-[12px] font-bold text-[#1A2840] leading-tight">{msg.article.title}</p>
+                    </div>
+                    <div className="px-3.5 pb-2 space-y-1.5">
+                      <p className="text-[10px] font-semibold text-[#5BA970] uppercase tracking-wide">Poin pentingnya</p>
+                      {msg.article.points.map((pt, k) => (
+                        <div key={k} className="flex items-start gap-2">
+                          <span className="text-[#5BA970] text-xs leading-relaxed shrink-0">✓</span>
+                          <p className="text-[12px] text-[#5A6472] leading-relaxed">{pt}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <Link href={`/articles/${msg.article.slug}`}
+                      className="flex items-center justify-between px-3.5 py-2.5 border-t border-[#EEF0F8] text-[#415f83] hover:bg-[#F8FAFF] transition-colors">
+                      <span className="text-[11px] font-semibold">Baca selengkapnya ({msg.article.read_time} menit)</span>
+                      <ArrowRight size={13} />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
+                    style={msg.from === 'sari'
+                      ? { background: 'white', color: '#1A2840', borderBottomLeftRadius: 6, border: '1px solid #EEF0F8' }
+                      : { background: '#415f83', color: 'white', borderBottomRightRadius: 6 }}>
+                    {msg.text}
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
@@ -360,20 +457,25 @@ function GuestChat({ loggedIn = false }) {
               <div className="flex items-center gap-1.5 mb-2">
                 <BookOpen size={12} style={{ color: '#415f83' }} />
                 <p className="text-[10px] font-semibold text-[#1A2840] uppercase tracking-wide">Artikel untukmu</p>
+                <span className="text-[10px] text-[#A8B4C8] normal-case font-normal">· ketuk untuk poin singkat</span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {recommendedArticles.map(art => (
-                  <Link key={art.slug} href={`/articles/${art.slug}`}
-                    className="flex items-center gap-2 shrink-0 max-w-[220px] p-2 rounded-xl border border-[#EEF0F8] bg-[#F8FAFF] hover:bg-white hover:shadow-[0_2px_12px_rgba(65,95,131,0.08)] transition-all group">
+                  <button key={art.slug} type="button"
+                    onClick={() => openArticlePoints(art)}
+                    disabled={!!loadingArticleSlug}
+                    className="flex items-center gap-2 shrink-0 max-w-[220px] p-2 rounded-xl border border-[#EEF0F8] bg-[#F8FAFF] hover:bg-white hover:shadow-[0_2px_12px_rgba(65,95,131,0.08)] transition-all group text-left disabled:opacity-60">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
                       style={{ background: art.cover_gradient }}>
-                      {art.cover_emoji}
+                      {loadingArticleSlug === art.slug
+                        ? <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><RefreshCw size={14} className="text-[#415f83]" /></motion.span>
+                        : art.cover_emoji}
                     </div>
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold text-[#1A2840] leading-tight group-hover:text-[#415f83] transition-colors line-clamp-1">{art.title}</p>
                       <p className="text-[10px] text-[#A8B4C8] mt-0.5">{art.read_time} menit · {art.category}</p>
                     </div>
-                  </Link>
+                  </button>
                 ))}
               </div>
             </motion.div>
