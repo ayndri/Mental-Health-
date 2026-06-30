@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, BookOpen, X, History, RefreshCw, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, Sparkles, BookOpen, X, History, RefreshCw, BarChart2, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { chatAPI, journalAPI, articlesAPI } from '@/lib/api';
@@ -49,6 +49,26 @@ const CHIP_SETS = [
 function getChips(turn) {
   if (turn === 0) return CHIP_SETS[0];
   return CHIP_SETS[Math.min(turn, CHIP_SETS.length - 1)];
+}
+
+// Pull a short list of actionable takeaways from an article's content blocks,
+// so a stressed reader gets the gist without reading the whole thing.
+function extractKeyPoints(content) {
+  if (!Array.isArray(content)) return [];
+  const actionRe = /(lakukan|cara|mengatasi|atasi|tips|membantu|memutus|langkah|strategi|coba|redakan|tenang)/i;
+  let firstUl = null, actionUl = null;
+  for (let i = 0; i < content.length; i++) {
+    const b = content[i];
+    if (b?.type === 'ul' && Array.isArray(b.items) && b.items.length) {
+      if (!firstUl) firstUl = b.items;
+      let heading = '';
+      for (let j = i - 1; j >= 0; j--) {
+        if (content[j]?.type === 'h2') { heading = content[j].text || ''; break; }
+      }
+      if (!actionUl && actionRe.test(heading)) actionUl = b.items;
+    }
+  }
+  return (actionUl || firstUl || []).slice(0, 5);
 }
 
 const EMOTION_COLORS = {
@@ -118,7 +138,7 @@ function TypingIndicator() {
 }
 
 // ─── Overall emotion analysis panel ──────────────────────────────────────────
-function EmotionPanel({ messages, open, onToggle, articles }) {
+function EmotionPanel({ messages, open, onToggle, articles, onSelectArticle, loadingSlug }) {
   const analysis = useMemo(() => {
     const userMsgs = messages.filter(m => m.type === 'user' && m.ts);
     if (userMsgs.length === 0) return null;
@@ -235,21 +255,26 @@ function EmotionPanel({ messages, open, onToggle, articles }) {
                   {articles && articles.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#C2CAD8' }}>Artikel untukmu</p>
+                      <p className="text-[9px] -mt-1" style={{ color: '#C2CAD8' }}>Ketuk untuk poin singkat</p>
                       {articles.map(a => (
-                        <Link key={a.slug} href={`/articles/${a.slug}`}>
-                          <div
-                            className="rounded-xl p-2.5 flex items-start gap-2 cursor-pointer transition-colors hover:opacity-80"
-                            style={{ background: a.cover_gradient ? `linear-gradient(135deg, ${a.cover_gradient})` : '#F0F4FF' }}
-                          >
-                            <span className="text-lg shrink-0 mt-0.5">{a.cover_emoji ?? '📖'}</span>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: '#1A2840' }}>
-                                {a.title}
-                              </p>
-                              <p className="text-[10px] mt-0.5" style={{ color: '#5A6472' }}>{a.read_time ?? '3'} menit baca</p>
-                            </div>
+                        <button key={a.slug} type="button"
+                          onClick={() => onSelectArticle?.(a)}
+                          disabled={!!loadingSlug}
+                          className="w-full text-left rounded-xl p-2.5 flex items-start gap-2 cursor-pointer transition-colors hover:opacity-80 disabled:opacity-60"
+                          style={{ background: a.cover_gradient || '#F0F4FF' }}
+                        >
+                          <span className="text-lg shrink-0 mt-0.5">
+                            {loadingSlug === a.slug
+                              ? <motion.span className="inline-block" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><RefreshCw size={15} style={{ color: '#415f83' }} /></motion.span>
+                              : (a.cover_emoji ?? '📖')}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: '#1A2840' }}>
+                              {a.title}
+                            </p>
+                            <p className="text-[10px] mt-0.5" style={{ color: '#5A6472' }}>{a.read_time ?? '3'} menit baca</p>
                           </div>
-                        </Link>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -355,6 +380,45 @@ function ChatBubble({ msg, onSaveJournal }) {
   );
 }
 
+// ─── Article key-points bubble ────────────────────────────────────────────────
+const ArticlePointsBubble = forwardRef(function ArticlePointsBubble({ msg }, ref) {
+  const a = msg.article;
+  return (
+    <motion.div ref={ref}
+      className="flex justify-start items-end gap-2"
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+    >
+      <div className="w-7 h-7 rounded-lg bg-[#415f83]/10 flex items-center justify-center shrink-0 mb-0.5 text-sm">🌸</div>
+      <div className="max-w-[82%] rounded-2xl bg-white border border-[#EEF0F8] overflow-hidden"
+        style={{ borderBottomLeftRadius: 6 }}>
+        <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+            style={{ background: a.cover_gradient || '#F0F4FF' }}>
+            {a.cover_emoji ?? '📖'}
+          </div>
+          <p className="text-[12px] font-bold leading-tight" style={{ color: '#1A2840' }}>{a.title}</p>
+        </div>
+        <div className="px-3.5 pb-2 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#5BA970' }}>Poin pentingnya</p>
+          {a.points.map((pt, k) => (
+            <div key={k} className="flex items-start gap-2">
+              <span className="text-[#5BA970] text-xs leading-relaxed shrink-0">✓</span>
+              <p className="text-[12px] leading-relaxed" style={{ color: '#5A6472' }}>{pt}</p>
+            </div>
+          ))}
+        </div>
+        <Link href={`/articles/${a.slug}`}
+          className="flex items-center justify-between px-3.5 py-2.5 border-t border-[#EEF0F8] transition-colors hover:bg-[#F8FAFF]"
+          style={{ color: '#415f83' }}>
+          <span className="text-[11px] font-semibold">Baca selengkapnya ({a.read_time ?? 3} menit)</span>
+          <ArrowRight size={13} />
+        </Link>
+      </div>
+    </motion.div>
+  );
+});
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const WELCOME = {
   type: 'ai',
@@ -374,8 +438,11 @@ export default function ChatPage() {
   const [journalDraft, setJournalDraft] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [recommendedArticles, setRecommendedArticles] = useState([]);
-  const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
+  const [loadingArticleSlug, setLoadingArticleSlug] = useState(null);
+  const bottomRef   = useRef(null);
+  const messagesRef = useRef(null);
+  const lastMsgRef  = useRef(null);
+  const inputRef    = useRef(null);
 
   useEffect(() => {
     if (!isAuthenticated()) { router.replace('/login'); return; }
@@ -385,7 +452,20 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll ONLY inside the chat box (never the page).
+    const box = messagesRef.current;
+    if (!box) return;
+    const last = messages[messages.length - 1];
+    // For article key-point cards, ease to the TOP of the card so it reads
+    // from the start; otherwise keep following the bottom of the chat.
+    if (last?.type === 'article' && lastMsgRef.current) {
+      const boxRect = box.getBoundingClientRect();
+      const elRect  = lastMsgRef.current.getBoundingClientRect();
+      const top = box.scrollTop + (elRect.top - boxRect.top) - 8;
+      box.scrollTo({ top, behavior: 'smooth' });
+    } else {
+      box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    }
   }, [messages, isTyping, chips]);
 
   const loadHistory = async () => {
@@ -458,6 +538,38 @@ export default function ChatPage() {
     setChips(CHIP_SETS[0]);
   };
 
+  // Clicking a recommended article: fetch it and let Sari drop the key
+  // points straight into the chat (no long read for someone who's stressed).
+  const openArticlePoints = useCallback(async (art) => {
+    if (loadingArticleSlug) return;
+    setLoadingArticleSlug(art.slug);
+    try {
+      const res = await articlesAPI.getBySlug(art.slug);
+      const a = res.data.article || {};
+      const points = extractKeyPoints(a.content);
+      setMessages(prev => [...prev, {
+        type: 'article',
+        ts: new Date().toISOString(),
+        article: {
+          slug: art.slug,
+          title: a.title || art.title,
+          read_time: a.read_time || art.read_time,
+          cover_emoji: art.cover_emoji,
+          cover_gradient: art.cover_gradient,
+          points: points.length ? points : [a.excerpt || art.excerpt].filter(Boolean),
+        },
+      }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        type: 'ai',
+        text: 'Maaf, aku gagal mengambil ringkasan artikelnya. Coba buka artikelnya langsung ya 💙',
+        ts: new Date().toISOString(),
+      }]);
+    } finally {
+      setLoadingArticleSlug(null);
+    }
+  }, [loadingArticleSlug]);
+
   const handleSaveJournal = async ({ mood, title, text }) => {
     await journalAPI.create({ mood, title: title.trim(), content: `Hari ini aku merasakan...\n${text}` });
     toast.success('Tersimpan ke jurnal! 📖');
@@ -478,7 +590,7 @@ export default function ChatPage() {
         <div className="flex flex-col flex-1 overflow-hidden">
 
           {/* ── Header — same dark style as landing ── */}
-          <div className="bg-[#415f83] px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="bg-[#415f83] px-5 py-4 flex items-center justify-between shrink-0 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-xl">🌸</div>
               <div>
@@ -511,17 +623,21 @@ export default function ChatPage() {
           <div className="flex flex-1 overflow-hidden">
 
             {/* Emotion analysis panel */}
-            <EmotionPanel messages={messages} open={panelOpen} onToggle={() => setPanelOpen(p => !p)} articles={recommendedArticles} />
+            <EmotionPanel messages={messages} open={panelOpen} onToggle={() => setPanelOpen(p => !p)}
+              articles={recommendedArticles} onSelectArticle={openArticlePoints} loadingSlug={loadingArticleSlug} />
 
             {/* Chat column */}
             <div className="flex flex-col flex-1 overflow-hidden">
 
           {/* ── Messages ── */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
+          <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
             <AnimatePresence initial={false}>
               {messages.map((msg, i) => (
-                <ChatBubble key={i} msg={msg}
-                  onSaveJournal={(text) => setJournalDraft({ text, idx: i })} />
+                msg.type === 'article'
+                  ? <ArticlePointsBubble key={i} msg={msg}
+                      ref={i === messages.length - 1 ? lastMsgRef : null} />
+                  : <ChatBubble key={i} msg={msg}
+                      onSaveJournal={(text) => setJournalDraft({ text, idx: i })} />
               ))}
             </AnimatePresence>
 
