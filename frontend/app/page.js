@@ -52,20 +52,28 @@ function useAmbientSound() {
       ctxRef.current = ctx;
       const master = ctx.createGain();
       master.gain.setValueAtTime(0, ctx.currentTime);
-      master.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 2.5);
+      master.gain.linearRampToValueAtTime(0.14, ctx.currentTime + 4);
       master.connect(ctx.destination);
       masterRef.current = master;
 
-      const bufSize = ctx.sampleRate * 4;
+      // ── Gentle "ocean swell" noise: soft brown noise, heavily filtered,
+      //    with a slow wave-like ebb and flow ─────────────────────────────
+      const bufSize = ctx.sampleRate * 8;
       const buf = ctx.createBuffer(2, bufSize, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
         const d = buf.getChannelData(ch);
         let last = 0;
         for (let i = 0; i < bufSize; i++) {
           const w = Math.random() * 2 - 1;
-          d[i] = (last + 0.02 * w) / 1.02;
+          d[i] = (last + 0.015 * w) / 1.015;
           last = d[i];
-          d[i] *= 3.5;
+          d[i] *= 2.2;
+        }
+        // crossfade the buffer ends so the loop seam is inaudible
+        const fade = ctx.sampleRate * 0.5;
+        for (let i = 0; i < fade; i++) {
+          const k = i / fade;
+          d[i] = d[i] * k + d[bufSize - fade + i] * (1 - k);
         }
       }
       const noise = ctx.createBufferSource();
@@ -73,28 +81,43 @@ function useAmbientSound() {
       noise.loop = true;
       const lpf = ctx.createBiquadFilter();
       lpf.type = 'lowpass';
-      lpf.frequency.value = 280;
+      lpf.frequency.value = 220;
+      lpf.Q.value = 0.5;
       const ng = ctx.createGain();
-      ng.gain.value = 0.35;
+      ng.gain.value = 0.18;
+      // slow swell so the noise breathes like distant waves
+      const swell = ctx.createOscillator();
+      const swellG = ctx.createGain();
+      swell.type = 'sine'; swell.frequency.value = 0.05;
+      swellG.gain.value = 0.09;
+      swell.connect(swellG); swellG.connect(ng.gain);
       noise.connect(lpf); lpf.connect(ng); ng.connect(master);
-      noise.start();
-      sourcesRef.current.push(noise);
+      noise.start(); swell.start();
+      sourcesRef.current.push(noise, swell);
 
+      // ── Harmonic drone pad: root + fifth + octave + gentle high third.
+      //    All consonant, so they blend into a warm chord instead of
+      //    clashing the way the old Solfeggio tones did. ─────────────────
       [
-        { freq: 174, vol: 0.055, lfo: 0.08 },
-        { freq: 285, vol: 0.038, lfo: 0.11 },
-        { freq: 396, vol: 0.028, lfo: 0.07 },
-        { freq: 528, vol: 0.018, lfo: 0.09 },
+        { freq: 130.81, vol: 0.060, lfo: 0.045 }, // C3 root
+        { freq: 196.00, vol: 0.040, lfo: 0.038 }, // G3 perfect fifth
+        { freq: 261.63, vol: 0.028, lfo: 0.052 }, // C4 octave
+        { freq: 329.63, vol: 0.014, lfo: 0.041 }, // E4 major third (soft shimmer)
       ].forEach(({ freq, vol, lfo: lfoRate }, i) => {
         const osc = ctx.createOscillator();
         const og  = ctx.createGain();
+        const lpfOsc = ctx.createBiquadFilter();
         const lfoOsc = ctx.createOscillator();
         const lfoG   = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.value = freq; og.gain.value = vol;
-        lfoOsc.frequency.value = lfoRate; lfoG.gain.value = vol * 0.4;
+        osc.type = 'sine'; osc.frequency.value = freq;
+        // warm off the top end so the tones feel rounded, not piercing
+        lpfOsc.type = 'lowpass'; lpfOsc.frequency.value = 900; lpfOsc.Q.value = 0.4;
+        og.gain.value = vol;
+        // slow, shallow breathing — no jittery tremolo
+        lfoOsc.frequency.value = lfoRate; lfoG.gain.value = vol * 0.25;
         lfoOsc.connect(lfoG); lfoG.connect(og.gain);
-        osc.connect(og); og.connect(master);
-        const t = ctx.currentTime + i * 0.6;
+        osc.connect(lpfOsc); lpfOsc.connect(og); og.connect(master);
+        const t = ctx.currentTime + i * 0.9;
         osc.start(t); lfoOsc.start(t);
         sourcesRef.current.push(osc, lfoOsc);
       });

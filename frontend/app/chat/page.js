@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, BookOpen, X, History, RefreshCw, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { chatAPI, journalAPI } from '@/lib/api';
+import { chatAPI, journalAPI, articlesAPI } from '@/lib/api';
 import { isAuthenticated, getStoredUser, removeToken } from '@/lib/auth';
 import { MOODS } from '@/components/features/MoodSelector';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
@@ -118,7 +118,7 @@ function TypingIndicator() {
 }
 
 // ─── Overall emotion analysis panel ──────────────────────────────────────────
-function EmotionPanel({ messages, open, onToggle }) {
+function EmotionPanel({ messages, open, onToggle, articles }) {
   const analysis = useMemo(() => {
     const userMsgs = messages.filter(m => m.type === 'user' && m.ts);
     if (userMsgs.length === 0) return null;
@@ -230,6 +230,29 @@ function EmotionPanel({ messages, open, onToggle }) {
                         );
                       })}
                   </div>
+
+                  {/* Article recommendations */}
+                  {articles && articles.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#C2CAD8' }}>Artikel untukmu</p>
+                      {articles.map(a => (
+                        <Link key={a.slug} href={`/articles/${a.slug}`}>
+                          <div
+                            className="rounded-xl p-2.5 flex items-start gap-2 cursor-pointer transition-colors hover:opacity-80"
+                            style={{ background: a.cover_gradient ? `linear-gradient(135deg, ${a.cover_gradient})` : '#F0F4FF' }}
+                          >
+                            <span className="text-lg shrink-0 mt-0.5">{a.cover_emoji ?? '📖'}</span>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: '#1A2840' }}>
+                                {a.title}
+                              </p>
+                              <p className="text-[10px] mt-0.5" style={{ color: '#5A6472' }}>{a.read_time ?? '3'} menit baca</p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -350,6 +373,7 @@ export default function ChatPage() {
   const [chips, setChips]       = useState(CHIP_SETS[0]);
   const [journalDraft, setJournalDraft] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [recommendedArticles, setRecommendedArticles] = useState([]);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -406,6 +430,12 @@ export default function ChatPage() {
         text: chat.coping_strategy || 'Aku di sini untukmu 💙',
         ts: chat.created_at ? new Date(chat.created_at).toISOString() : new Date().toISOString(),
       }]);
+      // Fetch article recommendations based on detected emotion
+      if (chat.emotion_result) {
+        articlesAPI.getRecommended(chat.emotion_result)
+          .then(r => setRecommendedArticles(r.data.articles ?? []))
+          .catch(() => {});
+      }
       setTimeout(() => setChips(getChips(newTurn)), 400);
     } catch {
       toast.error('Gagal menghubungi Sari');
@@ -481,7 +511,7 @@ export default function ChatPage() {
           <div className="flex flex-1 overflow-hidden">
 
             {/* Emotion analysis panel */}
-            <EmotionPanel messages={messages} open={panelOpen} onToggle={() => setPanelOpen(p => !p)} />
+            <EmotionPanel messages={messages} open={panelOpen} onToggle={() => setPanelOpen(p => !p)} articles={recommendedArticles} />
 
             {/* Chat column */}
             <div className="flex flex-col flex-1 overflow-hidden">
