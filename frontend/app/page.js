@@ -179,21 +179,28 @@ function GuestChat({ loggedIn = false }) {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingArticleSlug, setLoadingArticleSlug] = useState(null);
   const [done, setDone]                 = useState(false);
-  const bottomRef  = useRef(null);
-  const lastMsgRef = useRef(null);
-  const inputRef   = useRef(null);
-  const chipsRef   = useRef(null);
-  const sectionRef = useRef(null);
+  const bottomRef   = useRef(null);
+  const lastMsgRef  = useRef(null);
+  const messagesRef = useRef(null);
+  const inputRef    = useRef(null);
+  const chipsRef    = useRef(null);
+  const sectionRef  = useRef(null);
   const inView = useInView(sectionRef, { once: true, margin: '-60px' });
 
   useEffect(() => {
+    // Scroll ONLY inside the chat box (never the page).
+    const box = messagesRef.current;
+    if (!box) return;
     const last = messages[messages.length - 1];
     // For article-point cards, ease to the TOP of the card so it reads from
     // the start; for normal messages, keep following the bottom of the chat.
-    if (last?.type === 'article') {
-      lastMsgRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (last?.type === 'article' && lastMsgRef.current) {
+      const boxRect = box.getBoundingClientRect();
+      const elRect  = lastMsgRef.current.getBoundingClientRect();
+      const top = box.scrollTop + (elRect.top - boxRect.top) - 8;
+      box.scrollTo({ top, behavior: 'smooth' });
     } else {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, chips, loadingSummary]);
 
@@ -374,7 +381,7 @@ function GuestChat({ loggedIn = false }) {
         </div>
 
         {/* Messages */}
-        <div className="h-80 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
+        <div ref={messagesRef} className="h-80 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FAFF]">
           <AnimatePresence initial={false}>
             {messages.map((msg, i) => (
               <motion.div key={i} ref={i === messages.length - 1 ? lastMsgRef : null}
