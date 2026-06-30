@@ -845,7 +845,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] font-poppins overflow-x-hidden">
+    <div className="min-h-screen bg-[#F6F8FB] font-poppins" style={{ overflowX: 'clip' }}>
 
       {/* ── NAVBAR ── */}
       <nav className={`sticky top-0 z-50 backdrop-blur-md border-b border-[#EEF0F8] transition-all duration-300 ${scrolled ? 'bg-white shadow-[0_2px_20px_rgba(65,95,131,0.09)]' : 'bg-white/80'}`}>
